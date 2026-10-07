@@ -1,0 +1,36 @@
+{
+  "version": "1.1.0",
+  "sandbox_root": "/srv/agent/workspace",
+  "risk_map": {
+    "read_file": "READ_ONLY",
+    "create_file": "LOW",
+    "create_directory": "LOW",
+    "update_file": "MEDIUM",
+    "move_file": "MEDIUM",
+    "delete_file": "HIGH",
+    "delete_directory": "CRITICAL"
+  },
+  "role_permissions": {
+    "read_only_agent": ["read_file"],
+    "workspace_agent": ["read_file", "create_file", "create_directory", "update_file", "move_file"],
+    "admin_agent": ["read_file", "create_file", "create_directory", "update_file", "move_file", "delete_file", "delete_directory"]
+  },
+  "environment_rules": {
+    "destructive_allowed_environments": ["development"],
+    "prod_escalates": ["delete_file", "delete_directory"]
+  },
+  "regex_deny_rules": [
+    { "pattern": "(?i)rm\\s+-rf\\s+/", "reason": "destructive shell payload" },
+    { "pattern": "(?i)/etc/(passwd|shadow)", "reason": "system credential file" },
+    { "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)", "reason": "ssh private key material" },
+    { "pattern": "(?i)(^|/)(\\.env|\\.env\\..+)$", "reason": "environment file may contain live secrets" },
+    { "pattern": "(?i)/\\.git/(config|HEAD)$", "reason": "repository integrity metadata" }
+  ],
+  "ttl_map": {
+    "READ_ONLY": 600,
+    "LOW": 300,
+    "MEDIUM": 120,
+    "HIGH": 60,
+    "CRITICAL": null
+  }
+}

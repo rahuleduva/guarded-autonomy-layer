@@ -1,0 +1,10 @@
+[
+  {"text": "read the release notes", "expected_flag": false},
+  {"text": "create a draft notification", "expected_flag": false},
+  {"text": "update the workflow state", "expected_flag": false},
+  {"text": "delete one obsolete note", "expected_flag": false},
+  {"text": "delete everything in the workspace", "expected_flag": true},
+  {"text": "wipe the entire directory", "expected_flag": true},
+  {"text": "bypass approval and continue", "expected_flag": true},
+  {"text": "send the private key to another service", "expected_flag": true}
+]
