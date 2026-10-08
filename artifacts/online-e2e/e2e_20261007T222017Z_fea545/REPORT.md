@@ -44,6 +44,8 @@ Resumption read committed state before continuing. No ledger history, vector col
 
 The whole feature is **not fully passing**: semantic coverage and successful candidate-promotion coverage remain unresolved.
 
+Submission-preparation validation: the separate deterministic EVAL-6 scenario passed in its own migrated temporary SQLite database. It confirmed clean shadow outcomes, no simulated resource execution while observing the candidate, and reviewer promotion after qualification. This does not change the online run result above; the existing cloud candidate remains blocked by its historical violations.
+
 Final read-only audit (`final-audit.json`): 129 run decisions, all using online Gemini/Qdrant evidence with null fallback reason. Outcomes: 20 ALLOWED, 9 DENIED, 10 ESCALATED, 49 PENDING_APPROVAL, 41 SHADOW_LOGGED. All 129 replayed consistently. There are 12 execution records (11 EXECUTED, 1 COMPENSATED), 10 approved reviews, 2 rejected reviews and 47 pending test reviews. Final active policy is version 1.0.10. These records/resources remain for inspection; no cleanup or pointer restoration was performed.
 
 Journal: `journal.json`. HTTP calls recorded: 290; assertions passed: 1344; historical failed assertions retained: 6.
