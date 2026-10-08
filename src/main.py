@@ -1,5 +1,7 @@
 """Unified FastAPI gateway; each mutation commits before returning authorization."""
 from contextlib import asynccontextmanager
+import logging
+import traceback
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +13,9 @@ from src.services import autonomy_service, escalation_service, executor, llm_par
 from src.services.orchestrator import evaluate_action
 from src.services.policy_loader import seed_policy_artifacts
 from src.services.policy_store import active
+from src.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class ControlPayload(BaseModel):
@@ -53,18 +58,32 @@ def create_app(database_engine=None) -> FastAPI:
             yield session
 
     def transaction(session, operation):
+        phase = "operation"
         try:
             result = operation()
+            phase = "commit"
             session.commit()
             return result
         except IntegrityError:
             session.rollback()
             raise HTTPException(409, "duplicate request or conflicting database state") from None
+        except llm_parser.OnlineActionParseError as exc:
+            session.rollback()
+            raise HTTPException(502, str(exc)) from None
         except ValueError as exc:
             session.rollback()
             raise HTTPException(400, str(exc)) from None
-        except Exception:
+        except Exception as exc:
+            # Frame locations identify the failure without logging SQL parameters,
+            # request bodies, connection strings, or capability tokens.
+            logger.error(
+                "Transaction failed: operation=%s phase=%s exception=%s\n%s",
+                operation.__qualname__, phase, type(exc).__name__,
+                "".join(traceback.format_list(traceback.extract_tb(exc.__traceback__))),
+            )
             session.rollback()
+            if settings.DEV_DIAGNOSTICS:
+                raise
             raise HTTPException(503, "operation aborted; audit or execution could not be committed") from None
 
     @application.get("/api/v1/health")

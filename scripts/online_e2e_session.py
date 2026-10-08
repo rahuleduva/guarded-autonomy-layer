@@ -181,17 +181,21 @@ class OnlineSession:
                        and params.size == settings.GEMINI_EMBEDDING_DIMENSIONS)
             self.check("embedding_spec keyword payload index", "embedding_spec" in info.payload_schema
                        and info.payload_schema["embedding_spec"].data_type == models.PayloadSchemaType.KEYWORD)
-            from src.services.vector_setup import PATTERNS
-            from uuid import NAMESPACE_URL, uuid5
+            from src.services.vector_setup import point_id
+            from src.services.semantic_corpus import load_corpus
+            corpus = load_corpus()
             points = client.retrieve(settings.QDRANT_COLLECTION,
-                ids=[str(uuid5(NAMESPACE_URL, embeddings.specification() + value)) for value, _ in PATTERNS],
+                ids=[point_id(example.id) for example in corpus.examples],
                 with_payload=True, with_vectors=False)
             payloads = [point.payload or {} for point in points]
             self.log("configured Qdrant collection", {"collection": settings.QDRANT_COLLECTION,
                 "dimensions": params.size, "distance": str(params.distance),
                 "points_count": info.points_count, "matching_sample": payloads})
-            self.check("all six advisory patterns seeded", {p[0] for p in PATTERNS}.issubset(
-                {p.get("text") for p in payloads if p.get("embedding_spec") == embeddings.specification()}))
+            self.check("all versioned contrasting examples seeded", {p.id for p in corpus.examples}.issubset(
+                {p.get("example_id") for p in payloads if p.get("embedding_spec") == embeddings.specification()
+                 and p.get("corpus_hash") == corpus.fingerprint}))
+            self.check("semantic filter indexes", all(key in info.payload_schema
+                for key in ("corpus_hash", "action_family", "label")))
         finally:
             client.close()
 

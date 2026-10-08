@@ -40,6 +40,7 @@ python-dotenv==1.2.4
 python-jose==3.5.0
 PyYAML==6.0.3
 qdrant-client==1.19.1
+redis>=5.0,<7.0
 rsa==4.9.1
 six==1.17.0
 SQLAlchemy==2.0.54

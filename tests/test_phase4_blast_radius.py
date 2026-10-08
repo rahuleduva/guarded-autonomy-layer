@@ -129,9 +129,8 @@ def test_broad_scope_requires_review_for_otherwise_allowed_action():
     assert "blast radius" in result.reason
 
 
-def test_cloud_failure_has_same_decision_signal_as_offline_stub(monkeypatch):
+def test_cloud_failure_requests_review_without_silent_offline_success(monkeypatch):
     action = request(parameters={"notes": "delete everything"})
-    offline_result = semantic_engine.evaluate(action)
     monkeypatch.setattr(settings, "OFFLINE_MODE", False)
     monkeypatch.setattr(settings, "QDRANT_URL", "https://unused.example")
 
@@ -140,7 +139,8 @@ def test_cloud_failure_has_same_decision_signal_as_offline_stub(monkeypatch):
 
     monkeypatch.setattr(semantic_engine, "_query_qdrant", unavailable)
     assessment = semantic_engine.assess(action)
-    assert (assessment.flag, assessment.score, assessment.warning) == offline_result
+    assert assessment.flag and assessment.classification == "unavailable"
+    assert "human review" in assessment.warning
     assert assessment.fallback_reason == "ConnectionError"
     assert "sensitive" not in str(assessment.as_evidence())
 
@@ -158,11 +158,13 @@ def test_offline_mode_never_calls_cloud(monkeypatch):
 def test_vector_threshold_is_advisory(monkeypatch, score, expected_flag):
     monkeypatch.setattr(settings, "OFFLINE_MODE", False)
     monkeypatch.setattr(settings, "QDRANT_URL", "https://unused.example")
-    monkeypatch.setattr(semantic_engine, "_query_qdrant", lambda _: (score, "seed reason", "42"))
+    monkeypatch.setattr(semantic_engine, "_query_qdrant", lambda _: [
+        {"label": "risky", "score": score, "risk_category": "review_bypass", "reference": "42"},
+        {"label": "benign", "score": 0.1, "risk_category": "none", "reference": "43"}])
     assessment = semantic_engine.assess(request())
     assert assessment.flag == expected_flag
-    assert assessment.warning == ("seed reason" if expected_flag else None)
-    assert assessment.reference == "42"
+    assert assessment.warning == ("possible attempt to bypass review" if expected_flag else None)
+    assert assessment.reference == "42" and assessment.benign_reference == "43"
 
 
 def test_qdrant_adapter_queries_local_cosine_collection(monkeypatch):
@@ -171,15 +173,17 @@ def test_qdrant_adapter_queries_local_cosine_collection(monkeypatch):
 
     client = qdrant_client.QdrantClient(location=":memory:")
     client.create_collection("advisories", vectors_config=models.VectorParams(size=3, distance=models.Distance.COSINE))
-    client.upsert("advisories", points=[models.PointStruct(id=1, vector=[1.0, 0.0, 0.0],
-                                                         payload={"reason": "seeded advisory", "embedding_spec": semantic_engine.embeddings.specification()})])
-    fake_model = SimpleNamespace(encode=lambda *args, **kwargs: SimpleNamespace(tolist=lambda: [1.0, 0.0, 0.0]))
-    monkeypatch.setattr(semantic_engine, "_embedding_model", lambda: fake_model)
+    common = {"embedding_spec": semantic_engine.embeddings.specification(),
+              "corpus_hash": semantic_engine.load_corpus().fingerprint, "action_family": "any"}
+    client.upsert("advisories", points=[
+        models.PointStruct(id=1, vector=[1.0, 0.0, 0.0], payload={**common, "label": "risky", "risk_category": "review_bypass"}),
+        models.PointStruct(id=2, vector=[0.0, 1.0, 0.0], payload={**common, "label": "benign", "risk_category": "none"})])
+    monkeypatch.setattr(semantic_engine, "_vector", lambda _: [1.0, 0.0, 0.0])
     monkeypatch.setattr(semantic_engine, "_cloud_client", lambda: client)
     monkeypatch.setattr(settings, "QDRANT_COLLECTION", "advisories")
-    score, warning, reference = semantic_engine._query_qdrant("test")
-    assert score == pytest.approx(1.0)
-    assert warning == "seeded advisory" and reference == "1"
+    candidates = semantic_engine._query_qdrant(request())
+    assert candidates[0]["score"] == pytest.approx(1.0)
+    assert candidates[0]["reference"] == "1"
 
 
 def test_frozen_evidence_is_echoed_without_advisory_recomputation(monkeypatch):

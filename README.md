@@ -40,20 +40,21 @@ example, `create file notes.txt with content hello in development` or a JSON
 action containing `action_class`, `target_resource`, `parameters`, and
 `environment`. Ambiguous prompts are rejected.
 
-Provider packages are included in `requirements.txt`. Both chat providers use
-the `openai` client against their own endpoints; Gemini embeddings use
-`google-genai`. Chat parsing requests JSON output and validates it with Pydantic.
+Provider packages are included in `requirements.txt`. Gemini uses `google-genai`
+with native JSON-schema output; Groq uses the `openai` client with JSON mode.
+Both validate parsed actions with Pydantic. Gemini embeddings use `google-genai`.
 Select `LLM_PROVIDER=gemini` or `groq`, with the corresponding API key and model
 configuration. Select `EMBEDDING_PROVIDER=gemini` or `sentence_transformers`;
 Sentence Transformers requires a previously cached model. Vector storage uses
 only the configured HTTPS cloud Qdrant endpoint. Explicit online commands
 `python -m src.cli seed-advisories` and `python -m src.cli calibrate-semantic`
-prepare synthetic patterns and report a suggested cutoff. Calibration never
+seed 20 contrasting examples with operation metadata and report a suggested cutoff. Calibration never
 changes configuration automatically. See [advisory details](docs/phase4_advisory.md).
 
 Execution affects synthetic resources in the database, not the filesystem.
-Paths use string containment without symlink resolution. Semantic fallback is
-a pattern matcher, and the vector threshold still requires live calibration.
+Paths use string containment without symlink resolution. Explicit offline mode uses
+a pattern matcher; an unavailable online advisor requests review. The vector
+threshold still requires representative calibration.
 Reviewer identities are supplied by callers: the control routes are an internal
 demonstration, not an authenticated reviewer portal. Optional online adapters
 are tested with controlled responses; live provider availability is unverified.

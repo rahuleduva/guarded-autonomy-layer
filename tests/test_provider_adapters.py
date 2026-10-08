@@ -24,19 +24,47 @@ def test_configured_chat_provider_uses_validated_json(monkeypatch, provider, bas
             captured.update(kwargs)
             return SimpleNamespace(choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(
                 content='{"action_class":"read_file","target_resource":"notes.txt"}'))])
-    module = ModuleType("openai")
-    module.OpenAI = FakeClient
-    monkeypatch.setitem(sys.modules, "openai", module)
+    if provider == "gemini":
+        class FakeGeminiClient:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+                self.models = SimpleNamespace(generate_content=self.generate_content)
+            def generate_content(self, **kwargs):
+                captured.update(kwargs)
+                return SimpleNamespace(parsed=ParsedAction(
+                    action_class="read_file", target_resource="notes.txt"))
+            def close(self):
+                captured["closed"] = True
+        google = ModuleType("google")
+        genai = ModuleType("google.genai")
+        genai.Client = FakeGeminiClient
+        genai.types = SimpleNamespace(
+            HttpOptions=lambda **kwargs: kwargs,
+            GenerateContentConfig=lambda **kwargs: kwargs,
+        )
+        google.genai = genai
+        monkeypatch.setitem(sys.modules, "google", google)
+        monkeypatch.setitem(sys.modules, "google.genai", genai)
+    else:
+        module = ModuleType("openai")
+        module.OpenAI = FakeClient
+        monkeypatch.setitem(sys.modules, "openai", module)
     monkeypatch.setattr(settings, "OFFLINE_MODE", False)
     monkeypatch.setattr(settings, "LLM_PROVIDER", provider)
     monkeypatch.setattr(settings, key_field, "synthetic-test-key")
     result = llm_providers.structured_parser(ParsedAction).invoke([{"role": "user", "content": "read notes.txt"}])
-    assert result.action_class == "read_file" and result.target_resource == "notes.txt"
+    assert result["action_class"] == "read_file" and result["target_resource"] == "notes.txt"
     assert captured["model"] == getattr(settings, model_field)
-    assert captured["temperature"] == 0 and captured["timeout"] == 10
-    assert captured["base_url"] == base_url and captured["closed"]
-    assert captured["response_format"] == {"type": "json_object"}
-    assert "action_class" in captured["messages"][0]["content"]
+    assert captured["closed"]
+    if provider == "gemini":
+        assert captured["config"]["temperature"] == 0
+        assert captured["config"]["response_mime_type"] == "application/json"
+        assert "create_file" in captured["config"]["response_json_schema"]["properties"]["action_class"]["enum"]
+    else:
+        assert captured["temperature"] == 0 and captured["timeout"] == 10
+        assert captured["base_url"] == base_url
+        assert captured["response_format"] == {"type": "json_object"}
+        assert "action_class" in captured["messages"][0]["content"]
 
 
 @pytest.mark.parametrize("content,finish_reason", [
@@ -61,7 +89,7 @@ def test_provider_rejects_invalid_or_incomplete_actions(monkeypatch, content, fi
     monkeypatch.setitem(sys.modules, "openai", module)
     parser = llm_providers.StructuredParser(ParsedAction, api_key="synthetic", base_url="https://example.test", model="test")
     with pytest.raises(ValueError):
-        parser.invoke([{"role": "user", "content": "read file x"}])
+        ParsedAction.model_validate(parser.invoke([{"role": "user", "content": "read file x"}]))
 
 
 def test_gemini_embedding_normalizes_and_closes_client(monkeypatch):

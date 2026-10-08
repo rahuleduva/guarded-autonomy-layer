@@ -2,12 +2,30 @@
 
 from sqlmodel import create_engine, Session
 from sqlalchemy import event
+from sqlalchemy.engine import make_url
 from src.config import settings
 
-# SQLite requires extra connection arguments for multi-thread support in FastAPI
-connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+database_url = make_url(settings.DATABASE_URL)
+is_sqlite = database_url.get_backend_name() == "sqlite"
+is_postgresql = database_url.get_backend_name() == "postgresql"
 
-engine = create_engine(settings.DATABASE_URL, echo=False, connect_args=connect_args)
+# Check pooled connections before use. This cannot recover a transaction whose
+# connection drops midway; callers still roll back and report the failure.
+engine_options = {"pool_pre_ping": True} if is_postgresql else {}
+connect_args = {"check_same_thread": False} if is_sqlite else {}
+if is_postgresql and database_url.get_driver_name() == "psycopg2":
+    # libpq options: bound connection establishment and detect dead TCP peers.
+    # These are transport settings, not SQL query or transaction timeouts.
+    connect_args.update(
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+    )
+
+engine = create_engine(settings.DATABASE_URL, echo=False,
+                       connect_args=connect_args, **engine_options)
 
 # Enable foreign key enforcement on SQLite for every connection
 @event.listens_for(engine, "connect")

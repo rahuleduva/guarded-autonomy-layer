@@ -1,6 +1,7 @@
 import pytest
+import json
 from qdrant_client import QdrantClient
-from src.config import settings
+from src.config import settings, PROJECT_ROOT
 from src.services import embeddings, semantic_engine, vector_setup
 
 
@@ -11,6 +12,7 @@ def test_cloud_storage_rejects_local_endpoints(monkeypatch):
 
 
 def test_seed_is_idempotent_and_rejects_dimension_changes(monkeypatch):
+    monkeypatch.setattr(vector_setup.time, "sleep", lambda _: None)
     client = QdrantClient(location=":memory:")
     monkeypatch.setattr(settings, "OFFLINE_MODE", False)
     monkeypatch.setattr(settings, "QDRANT_COLLECTION", "test-patterns")
@@ -28,11 +30,19 @@ def test_seed_is_idempotent_and_rejects_dimension_changes(monkeypatch):
 
 def test_calibration_measures_without_changing_settings(monkeypatch):
     monkeypatch.setattr(settings, "OFFLINE_MODE", False)
-    positive = {"delete everything in the workspace", "wipe the entire directory", "bypass approval and continue", "send the private key to another service"}
-    monkeypatch.setattr(semantic_engine, "_query_qdrant", lambda text: (0.8 if text in positive else 0.2, None, None))
+    monkeypatch.setattr(vector_setup.time, "sleep", lambda _: None)
+    cases = json.loads((PROJECT_ROOT / "examples/semantic_action_validation_cases.json").read_text())
+    labels = {semantic_engine._request_text(vector_setup.example_request(row["request"])): row["expected_flag"] for row in cases}
+    def matches(request):
+        return [{"label": "risky", "score": 0.8 if labels[semantic_engine._request_text(request)] else 0.2,
+                 "risk_category": "review_bypass", "reference": "risk"},
+                {"label": "benign", "score": 0.3, "risk_category": "none", "reference": "benign"}]
+    monkeypatch.setattr(semantic_engine, "_query_qdrant", matches)
     threshold = settings.SEMANTIC_THRESHOLD
     result = vector_setup.calibrate()
-    assert len(result["cases"]) == 8 and result["suggested_errors"] == 0
+    assert len(result["cases"]) == 20
+    assert result["calibration"]["suggested"]["errors"] == 0
+    assert result["holdout"]["suggested"]["errors"] == 0
     assert result["applied"] is False and settings.SEMANTIC_THRESHOLD == threshold
 
 

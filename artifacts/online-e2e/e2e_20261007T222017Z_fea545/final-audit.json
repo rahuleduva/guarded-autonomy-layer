@@ -1,0 +1,219 @@
+{
+  "decisions": [
+    {
+      "outcome": "ALLOWED",
+      "count": 20
+    },
+    {
+      "outcome": "DENIED",
+      "count": 9
+    },
+    {
+      "outcome": "ESCALATED",
+      "count": 10
+    },
+    {
+      "outcome": "PENDING_APPROVAL",
+      "count": 49
+    },
+    {
+      "outcome": "SHADOW_LOGGED",
+      "count": 41
+    }
+  ],
+  "semantic_provenance": [
+    {
+      "source": "qdrant:gemini:gemini-embedding-2:768:similarity-v1",
+      "fallback_reason": null,
+      "count": 129
+    }
+  ],
+  "executions": [
+    {
+      "status": "COMPENSATED",
+      "count": 1
+    },
+    {
+      "status": "EXECUTED",
+      "count": 11
+    }
+  ],
+  "reviews": [
+    {
+      "status": "APPROVED",
+      "count": 10
+    },
+    {
+      "status": "PENDING",
+      "count": 47
+    },
+    {
+      "status": "REJECTED",
+      "count": 2
+    }
+  ],
+  "active_policy": [
+    {
+      "version": "1.0.10",
+      "policy_hash": "5e29be9cb52cd73c37a76dc3736a947d961ea8c0ea9372746c908ec291c68043"
+    }
+  ],
+  "autonomy": [
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_admin",
+      "action_class": "delete_directory",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_admin",
+      "action_class": "delete_file",
+      "mode": "ASSISTED",
+      "streak": 1
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_destination",
+      "action_class": "move_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_directory",
+      "action_class": "create_directory",
+      "mode": "ASSISTED",
+      "streak": 7
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_early",
+      "action_class": "create_file",
+      "mode": "ASSISTED",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_explicit_bypass",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_main",
+      "action_class": "create_file",
+      "mode": "LIVE",
+      "streak": 7
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_main",
+      "action_class": "update_file",
+      "mode": "LIVE",
+      "streak": 1
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_missing_destination",
+      "action_class": "move_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_mover",
+      "action_class": "move_file",
+      "mode": "ASSISTED",
+      "streak": 9
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_nested",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_prefix",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_prompt",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 1
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_reader",
+      "action_class": "read_file",
+      "mode": "ASSISTED",
+      "streak": 7
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_regex",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_role",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_rollback_shadow",
+      "action_class": "create_file",
+      "mode": "ASSISTED",
+      "streak": 7
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_rollback_shadow",
+      "action_class": "update_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_scope",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    },
+    {
+      "agent_id": "e2e_20261007T222017Z_fea545_traversal",
+      "action_class": "create_file",
+      "mode": "SHADOW",
+      "streak": 0
+    }
+  ],
+  "resources": [
+    {
+      "resource": "/srv/agent/workspace/e2e_20261007T222017Z_fea545/binding.txt",
+      "value_json": {
+        "kind": "file",
+        "content": "Hello"
+      }
+    },
+    {
+      "resource": "/srv/agent/workspace/e2e_20261007T222017Z_fea545/created-directory",
+      "value_json": {
+        "kind": "directory"
+      }
+    },
+    {
+      "resource": "/srv/agent/workspace/e2e_20261007T222017Z_fea545/moved.txt",
+      "value_json": {
+        "kind": "file",
+        "content": "Newer work"
+      }
+    },
+    {
+      "resource": "/srv/agent/workspace/e2e_20261007T222017Z_fea545/occupied.txt",
+      "value_json": {
+        "kind": "file",
+        "content": "Hello"
+      }
+    },
+    {
+      "resource": "/srv/agent/workspace/e2e_20261007T222017Z_fea545/rollback-needs-update-trust.txt",
+      "value_json": {
+        "kind": "file",
+        "content": "Hello"
+      }
+    }
+  ]
+}

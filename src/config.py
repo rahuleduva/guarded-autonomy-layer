@@ -40,6 +40,16 @@ class Settings(BaseSettings):
     # Keyless local run: SQLite instead of Postgres, stubbed Qdrant and Gemini.
     OFFLINE_MODE: bool = False
 
+    # Local diagnosis only: re-raise internal errors so the ASGI server logs
+    # their traceback instead of hiding them behind the API's generic 503.
+    DEV_DIAGNOSTICS: bool = False
+
+    # Optional Redis cache for query embeddings. No Redis connection is made
+    # unless REDIS_URL is configured.
+    REDIS_URL: str = ""
+    REDIS_NAMESPACE: str = Field(default="guarded-autonomy-layer", min_length=1)
+    EMBEDDING_CACHE_TTL_SECONDS: int = Field(default=86400, ge=1)
+
     # None means "derive from OFFLINE_MODE"; an explicit DATABASE_URL always wins.
     DATABASE_URL: Optional[str] = None
 
@@ -64,12 +74,26 @@ class Settings(BaseSettings):
     GEMINI_LLM_MODEL: str = "gemini-3.5-flash-lite"
     GROQ_LLM_MODEL: str = "qwen/qwen3.8-27b"
 
+    # Optional reranking. Observe until its scores are evaluated separately
+    # from cosine scores; review mode can add a warning, never clear one.
+    JINA_RERANKER_API_KEY: str = ""
+    JINA_RERANKER_API_URL: str = "https://api.jina.ai/v1/rerank"
+    JINA_RERANKER_MODEL: str = "jina-reranker-v2-base-multilingual"
+    JINA_RERANKER_TIMEOUT_SECONDS: float = Field(default=8.0, gt=0, le=30)
+    JINA_RERANKER_MODE: Literal["observe", "review", "disabled"] = "disabled"
+
     # Keep the existing Sentence Transformer as the default embedding provider.
     # Gemini embedding uses the optional provider adapter.
-    EMBEDDING_PROVIDER: Literal["sentence_transformers", "gemini"] = "sentence_transformers"
+    EMBEDDING_PROVIDER: Literal["sentence_transformers", "gemini", "jina"] = "sentence_transformers"
     SENTENCE_TRANSFORMER_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-2"
     GEMINI_EMBEDDING_DIMENSIONS: int = Field(default=768, ge=128, le=3072)
+
+    JINA_EMBEDDING_URL: str = "https://api.jina.ai/v1/embeddings"
+    JINA_API_KEY: str = ""
+    JINA_EMBEDDING_MODEL: str = "jina-embeddings-v3"
+    JINA_EMBEDDING_DIMENSIONS: int = Field(default=768, ge=32, le=4096)
+    JINA_EMBEDDING_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=60)
 
     # Promotion thresholds live in settings, never in the policy artifact:
     # everything in the artifact is hashed into policy_hash, and a threshold
@@ -81,6 +105,9 @@ class Settings(BaseSettings):
     # Advisory cutoff. 0.5 separates offline binary scores (0/1); vector cosine
     # scores need separate calibration against the deployed seeded collection.
     SEMANTIC_THRESHOLD: float = 0.5
+    # Zero compares the two labels directly. A wider uncertainty interval must
+    # be calibrated; values within that interval request human review.
+    SEMANTIC_SCORE_MARGIN: float = Field(default=0.0, ge=0, le=1)
 
     # Token lifetime is deliberately NOT a setting. A token's TTL is consumed by
     # the decision -- it becomes EvaluationResult.ttl_seconds and the issued
