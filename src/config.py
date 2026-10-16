@@ -66,13 +66,14 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
     QDRANT_COLLECTION: str = "policy_prompts"
 
-    # Optional language-model providers. Model IDs are user-specified defaults.
-    LLM_PROVIDER: Literal["gemini", "groq"] = "gemini"
+    # Provider credentials and provider-specific limits; model IDs are routed in YAML.
+    SARVAM_API_KEY: str = ""
+    SARVAM_LLM_MAX_TOKENS: int = Field(default=4096, ge=128, le=128000)
     GEMINI_API_KEY: str = ""
     GOOGLE_API_KEY: str = ""
     GROQ_API_KEY: str = ""
-    GEMINI_LLM_MODEL: str = "gemini-3.5-flash-lite"
-    GROQ_LLM_MODEL: str = "qwen/qwen3.8-27b"
+    AI_CREDITS_API_URL: str = ""
+    AI_CREDITS_API_KEY: str = ""
 
     # Optional reranking. Observe until its scores are evaluated separately
     # from cosine scores; review mode can add a warning, never clear one.
@@ -82,16 +83,11 @@ class Settings(BaseSettings):
     JINA_RERANKER_TIMEOUT_SECONDS: float = Field(default=8.0, gt=0, le=30)
     JINA_RERANKER_MODE: Literal["observe", "review", "disabled"] = "disabled"
 
-    # Keep the existing Sentence Transformer as the default embedding provider.
-    # Gemini embedding uses the optional provider adapter.
-    EMBEDDING_PROVIDER: Literal["sentence_transformers", "gemini", "jina"] = "sentence_transformers"
-    SENTENCE_TRANSFORMER_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
-    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-2"
+    # The selected embedding provider and model live in config/llm_routing.yaml.
     GEMINI_EMBEDDING_DIMENSIONS: int = Field(default=768, ge=128, le=3072)
 
     JINA_EMBEDDING_URL: str = "https://api.jina.ai/v1/embeddings"
     JINA_API_KEY: str = ""
-    JINA_EMBEDDING_MODEL: str = "jina-embeddings-v3"
     JINA_EMBEDDING_DIMENSIONS: int = Field(default=768, ge=32, le=4096)
     JINA_EMBEDDING_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=60)
 
@@ -108,6 +104,19 @@ class Settings(BaseSettings):
     # Zero compares the two labels directly. A wider uncertainty interval must
     # be calibrated; values within that interval request human review.
     SEMANTIC_SCORE_MARGIN: float = Field(default=0.0, ge=0, le=1)
+
+    # Phase 12: baseline preserves existing behavior; observe records the new
+    # assessment; review uses the validated judge and explicit coverage rules.
+    SEMANTIC_PIPELINE_MODE: Literal["baseline", "observe", "review"] = "baseline"
+    SEMANTIC_V3_COLLECTION: str = "semantic_advisory_v3"
+    SEMANTIC_V3_CORPUS_FILE: Path = PROJECT_ROOT / "examples" / "semantic_v3" / "corpus.json"
+    SEMANTIC_V3_ALLOW_UNREVIEWED: bool = False
+    # Routing from purpose -> named model -> provider/adapter lives in YAML.
+    # Credentials and gateway endpoints remain in .env.
+    LLM_ROUTING_FILE: Path = PROJECT_ROOT / "config" / "llm_routing.yaml"
+    SEMANTIC_MAX_EXTRA_QUERIES: int = Field(default=3, ge=0, le=7)
+    SEMANTIC_CANDIDATES_PER_LABEL: int = Field(default=2, ge=1, le=5)
+    SEMANTIC_JUDGE_MAX_CANDIDATES: int = Field(default=24, ge=3, le=60)
 
     # Token lifetime is deliberately NOT a setting. A token's TTL is consumed by
     # the decision -- it becomes EvaluationResult.ttl_seconds and the issued

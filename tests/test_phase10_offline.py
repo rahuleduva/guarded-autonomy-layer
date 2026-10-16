@@ -100,12 +100,15 @@ def test_api_human_review_and_policy_promotion(runtime_session):
         assert held["decision"] == "PENDING_APPROVAL"
         packages = client.get("/api/v1/escalations").json()
         assert any(package["decision_id"] == held["decision_id"] for package in packages)
-        review = {"decision_id": held["decision_id"], "reviewer_id": "api-reviewer", "approve": True}
+        package = next(package for package in packages if package["decision_id"] == held["decision_id"])
+        review = {"decision_id": held["decision_id"], "reviewer_id": "api-reviewer", "approve": True,
+                  "note": "Reviewed the specific action", "package_fingerprint": package["package_fingerprint"]}
         assert client.post("/api/v1/control/approve/wrong-id", json=review).status_code == 400
         approved = client.post(f"/api/v1/control/approve/{held['decision_id']}", json=review)
-        assert approved.status_code == 200 and approved.json()["new_policy_version"] == "1.0.1"
+        assert approved.status_code == 200 and approved.json()["new_policy_version"] is None
+        assert approved.json()["authorization_status"] == "ALLOWED"
         assert approved.json()["evaluation"]["capability_token"]
-        assert client.post(f"/api/v1/control/approve/{held['decision_id']}", json=review).status_code == 400
+        assert client.post(f"/api/v1/control/approve/{held['decision_id']}", json=review).status_code == 409
         assert client.post("/api/v1/control/promote-agent", json={"agent_id": "new", "action_class": "read_file",
             "reviewer_id": "api-reviewer", "approve": True}).json()["promoted"] is False
         from src.models.policy import Policy

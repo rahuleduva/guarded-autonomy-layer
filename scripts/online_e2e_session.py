@@ -7,7 +7,9 @@ the saved journal redacts them. All resource mutations go through HTTP.
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from threading import Barrier
 from uuid import uuid4
 
 import httpx
@@ -22,14 +24,14 @@ from src.models.decision import DecisionRecord
 from src.models.policy import Policy
 from src.services import embeddings, policy_promotion, semantic_engine
 from src.services.llm_parser import ParsedAction
-from src.services.llm_providers import structured_parser
+from src.services.llm_routing import resolve_purpose, setting_value, RoutedStructuredParser
 from src.services.policy_store import validate_stored
 
 
 TABLES = (
     "policies", "decision_records", "shadow_records", "autonomy_state",
     "autonomy_promotion_events", "escalation_queue", "policy_promotion_events",
-    "simulated_resources", "execution_records", "consumed_tokens",
+    "human_review_records", "simulated_resources", "execution_records", "consumed_tokens",
 )
 
 
@@ -91,20 +93,23 @@ class OnlineSession:
                 for name in TABLES}
 
     def discover(self):
+        parser_profile = resolve_purpose('request_parser')[1][0]
         self.log("safe configuration", {
-            "offline": settings.OFFLINE_MODE, "llm_provider": settings.LLM_PROVIDER,
-            "llm_model": settings.GEMINI_LLM_MODEL if settings.LLM_PROVIDER == "gemini" else settings.GROQ_LLM_MODEL,
-            "embedding_provider": settings.EMBEDDING_PROVIDER,
+            "offline": settings.OFFLINE_MODE, "llm_provider": parser_profile.provider,
+            "llm_model": parser_profile.model,
+            "embedding_provider": embeddings.provider_name(),
             "embedding_spec": embeddings.specification(),
             "collection": settings.QDRANT_COLLECTION, "semantic_threshold": settings.SEMANTIC_THRESHOLD,
+            "sarvam_key_present": bool(settings.SARVAM_API_KEY),
             "gemini_key_present": bool(settings.GEMINI_API_KEY),
             "groq_key_present": bool(settings.GROQ_API_KEY),
+            "configured_llm_key_present": bool(setting_value(parser_profile.api_key_setting)),
             "qdrant_key_present": bool(settings.QDRANT_API_KEY),
             "signing_key_changed_from_default": settings.SECRET_KEY != "dev-insecure-secret-change-me",
             "thresholds": {"assisted": self.A, "live": self.L, "policy": self.P},
         })
         self.check("online Gemini embeddings configured", not settings.OFFLINE_MODE
-                   and settings.EMBEDDING_PROVIDER == "gemini" and bool(settings.GEMINI_API_KEY))
+                   and embeddings.provider_name() == "gemini" and bool(settings.GEMINI_API_KEY))
         self.check("valid thresholds", 0 < self.A <= self.L and self.P > 0)
         self.api("GET", "/health")
         with httpx.Client(timeout=10) as client:
@@ -113,6 +118,7 @@ class OnlineSession:
             paths = response.json()["paths"]
         self.check("expected API routes", all(path in paths for path in (
             "/api/v1/actions/evaluate", "/api/v1/actions/evaluate-prompt",
+            "/api/v1/escalations/{decision_id}/prepare",
             "/api/v1/control/approve/{decision_id}", "/api/v1/actions/execute",
             "/api/v1/actions/rollback/{execution_id}", "/api/v1/replay/{decision_id}")))
         with engine.connect() as connection:
@@ -200,7 +206,7 @@ class OnlineSession:
             client.close()
 
     def provider_probe(self):
-        parsed = structured_parser(ParsedAction).invoke([
+        parsed = RoutedStructuredParser('request_parser', ParsedAction).invoke([
             {"role": "system", "content": "Return the requested file action exactly. Do not execute it."},
             {"role": "user", "content": "create file " + self.prefix + "/probe.txt with content Hello in development"},
         ])
@@ -248,8 +254,8 @@ class OnlineSession:
                                           "evidence": row.evidence_json})
         parser = response["action_request"]["parameters"].get("parser_provenance")
         if parser:
-            expected = settings.LLM_PROVIDER + ":" + (settings.GEMINI_LLM_MODEL if settings.LLM_PROVIDER == "gemini" else settings.GROQ_LLM_MODEL)
-            self.check("prompt parsed by configured live provider", parser.get("source") == expected
+            possible = {p.provider + ":" + p.model for p in resolve_purpose('request_parser')[1]}
+            self.check("prompt parsed by configured live provider", parser.get("source") in possible
                        and parser.get("fallback_reason") is None, parser)
         self.decisions[decision_id] = response
         self.representatives.setdefault(response["decision"], decision_id)
@@ -301,34 +307,54 @@ class OnlineSession:
         original_before = self.read(
             "SELECT outcome, policy_hash, request_json, evidence_json, created_at "
             "FROM decision_records WHERE decision_id=:id", {"id": decision_id})[0]
-        policies_before = self.read("SELECT policy_hash FROM policies ORDER BY policy_hash")
+        policies_before = self.read("SELECT policy_hash, version, is_active FROM policies ORDER BY policy_hash")
+        execution_before = self.execution_state(response)
+        autonomy_before = self.autonomy(response["action_request"]["agent_id"], response["action_request"]["action_class"])
+        packages = self.api("GET", "/escalations")
+        package = next(item for item in packages if item["decision_id"] == decision_id)
         result = self.api("POST", "/control/approve/" + decision_id,
             {"decision_id": decision_id, "reviewer_id": self.reviewer,
-             "approve": approve, "note": "Online E2E test reviewer response"})
+             "approve": approve, "note": "Online E2E test reviewer response",
+             "package_fingerprint": package["package_fingerprint"]})
         self.check("review status", result["status"] == ("APPROVED" if approve else "REJECTED"))
         original = self.read("SELECT outcome, policy_hash, reviewer_id, request_json, evidence_json, created_at FROM decision_records WHERE decision_id=:id", {"id": decision_id})[0]
-        self.check("original outcome and policy hash preserved", original["outcome"] == response["decision"]
-                   and original["policy_hash"] == response["policy_hash"] and original["reviewer_id"] == self.reviewer)
+        self.check("original decision remains unchanged", original["outcome"] == response["decision"]
+                   and original["policy_hash"] == response["policy_hash"] and original["reviewer_id"] is None)
         self.check("original request, evidence and timestamp preserved",
                    all(original[key] == value for key, value in original_before.items()))
-        package = self.read("SELECT status, reviewer_id, package_json FROM escalation_queue WHERE decision_id=:id",
+        self.check("approval does not change policy versions",
+                   self.read("SELECT policy_hash, version, is_active FROM policies ORDER BY policy_hash") == policies_before)
+        package = self.read("SELECT escalation_id, status, reviewer_id, package_json FROM escalation_queue WHERE decision_id=:id",
                             {"id": decision_id})[0]
         self.check("review package records human response", package["status"] == result["status"]
                    and package["reviewer_id"] == self.reviewer
                    and package["package_json"].get("review_note") == "Online E2E test reviewer response")
         self.log("reviewed package", package)
         if approve:
-            self.check("approval creates new policy and decision", bool(result["new_policy_version"])
+            self.check("approval creates linked authorization decision without policy bump",
+                       result["authorization_status"] in {"ALLOWED", "BLOCKED"}
                        and result["evaluation"]["decision_id"] != decision_id
-                       and result["evaluation"]["policy_hash"] != response["policy_hash"])
+                       and result["evaluation"]["policy_hash"] == response["policy_hash"]
+                       and result["new_policy_version"] is None)
             self.audit(result["evaluation"])
             if expected:
                 self.check("reviewed decision", result["evaluation"]["decision"] == expected)
         else:
             self.check("rejection creates no evaluation/version", result["evaluation"] is None
-                       and result["new_policy_version"] is None)
-            self.check("rejection creates no policy", self.read(
-                "SELECT policy_hash FROM policies ORDER BY policy_hash") == policies_before)
+                       and result["new_policy_version"] is None
+                       and result["authorization_status"] == "NOT_REQUESTED")
+        review_rows = self.read("SELECT review_id, decision, note, package_fingerprint, action_fingerprint, authorization_decision_id FROM human_review_records WHERE escalation_id=:id",
+                                {"id": package["escalation_id"]})
+        self.check("accepted reviewer response has immutable audit row", len(review_rows) == 1
+                   and review_rows[0]["decision"] == ("APPROVE" if approve else "REJECT")
+                   and review_rows[0]["package_fingerprint"] == package["package_json"]["package_fingerprint"]
+                   and review_rows[0]["action_fingerprint"] == package["package_json"]["action_fingerprint"]
+                   and review_rows[0]["note"] == "Online E2E test reviewer response"
+                   and review_rows[0]["review_id"] == result["review_id"]
+                   and review_rows[0]["authorization_decision_id"] == result["authorization_decision_id"])
+        self.check("human review does not execute the action", self.execution_state(response) == execution_before)
+        self.check("human review does not inflate autonomy", self.autonomy(
+            response["action_request"]["agent_id"], response["action_request"]["action_class"]) == autonomy_before)
         return result
 
     def execution_state(self, response):
@@ -345,6 +371,58 @@ class OnlineSession:
             "nonces": self.read("SELECT nonce FROM consumed_tokens WHERE decision_id=:id ORDER BY nonce",
                                 {"id": response["decision_id"]}),
         }
+
+    def review_boundaries(self, response):
+        """Check invalid submissions on a fresh held action; leave it pending."""
+        decision_id = response["decision_id"]
+        package = next(p for p in self.api("GET", "/escalations") if p["decision_id"] == decision_id)
+        payload = {"decision_id": decision_id, "reviewer_id": self.reviewer, "approve": True,
+                   "note": "Reviewed synthetic request", "package_fingerprint": package["package_fingerprint"]}
+        before = self.read("SELECT * FROM escalation_queue WHERE decision_id=:id", {"id": decision_id})
+        counts = self.counts()
+        for note in (None, "", "   "):
+            self.api("POST", "/control/approve/" + decision_id, dict(payload, note=note), expected_http=422)
+        missing = dict(payload)
+        missing.pop("note")
+        self.api("POST", "/control/approve/" + decision_id, missing, expected_http=422)
+        self.api("POST", "/control/approve/" + decision_id,
+                 dict(payload, package_fingerprint="0" * 64), expected_http=409)
+        self.check("invalid review submissions create no domain rows", self.counts() == counts)
+        self.check("invalid review submissions preserve pending package", before == self.read(
+            "SELECT * FROM escalation_queue WHERE decision_id=:id", {"id": decision_id}))
+
+    def concurrent_review(self, response):
+        """Race approve/reject on PostgreSQL; exactly one submission must win."""
+        decision_id = response["decision_id"]
+        package = next(p for p in self.api("GET", "/escalations") if p["decision_id"] == decision_id)
+        policies = self.read("SELECT policy_hash,version,is_active FROM policies ORDER BY policy_hash")
+        execution_before = self.execution_state(response)
+        gate = Barrier(2)
+        def submit(approve):
+            gate.wait(timeout=10)
+            with httpx.Client(timeout=90) as client:
+                result = client.post(self.base_url + "/api/v1/control/approve/" + decision_id, json={
+                    "decision_id": decision_id, "reviewer_id": self.reviewer + ("_approve" if approve else "_reject"),
+                    "approve": approve, "note": "Concurrent synthetic review", "package_fingerprint": package["package_fingerprint"]})
+                return result.status_code, result.json()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(submit, approve) for approve in (True, False)]
+            results = [future.result() for future in futures]
+        self.log("concurrent review responses", results)
+        self.check("exactly one concurrent review is accepted", sorted(code for code, _ in results) == [200, 409])
+        accepted = next(body for code, body in results if code == 200)
+        loser = next(body for code, body in results if code == 409)
+        self.check("losing reviewer receives no token", not loser.get("capability_token")
+                   and not (loser.get("evaluation") or {}).get("capability_token"))
+        reviews = self.read("SELECT * FROM human_review_records WHERE original_decision_id=:id", {"id": decision_id})
+        self.check("concurrent review creates one audit row", len(reviews) == 1 and reviews[0]["review_id"] == accepted["review_id"])
+        linked = self.read("SELECT decision_id FROM decision_records WHERE evidence_json->'human_review_finalization'->>'original_decision_id'=:id",
+                           {"id": decision_id})
+        self.check("losing review creates no authorization", len(linked) == (1 if accepted["status"] == "APPROVED" else 0))
+        self.check("concurrent review never executes the action", self.execution_state(response) == execution_before)
+        self.check("concurrent review preserves policies", self.read(
+            "SELECT policy_hash,version,is_active FROM policies ORDER BY policy_hash") == policies)
+        return accepted
 
     def execute(self, response, expected="EXECUTED"):
         before = self.execution_state(response)

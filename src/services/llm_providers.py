@@ -1,90 +1,140 @@
-"""Provider-backed structured action parsing, never policy decisions."""
-import json
+"""LangChain-backed structured chat providers; embeddings have a separate adapter."""
+from pydantic import ValidationError
+
 from src.config import settings
+from src.services.llm_routing import current_routing, setting_value
+from src.services.llm_errors import LLMConfigurationError, StructuredOutputError
 
 
-class GeminiStructuredParser:
-    def __init__(self, schema, *, api_key, model):
+class LangChainStructuredParser:
+    """Small adapter preserving the existing ``invoke(messages)`` interface."""
+
+    def __init__(self, schema, *, provider, adapter, api_key, base_url, model, timeout=20,
+                 max_tokens=1024, max_retries=0):
         self.schema = schema
-        self.api_key, self.model = api_key, model
+        self.provider = provider
+        self.adapter = adapter
+        self.base_url = base_url
+        self.api_key = api_key
+        self.model = model
+        self.timeout = timeout
+        self.max_tokens = max_tokens
+        self.max_retries = max_retries
 
-    def invoke(self, messages):
-        from google import genai
-        from google.genai import types
+    def _chat_model(self):
+        if self.adapter == "sarvam":
+            from langchain_sarvam import ChatSarvam
 
-        system_instruction = "\n".join(
-            message["content"] for message in messages if message["role"] == "system"
-        )
-        user_content = "\n\n".join(
-            message["content"] for message in messages if message["role"] == "user"
-        )
-        client = genai.Client(api_key=self.api_key,
-                              http_options=types.HttpOptions(timeout=10000))
-        try:
-            response = client.models.generate_content(
+            # Sarvam defaults reasoning on. Its tokens share the output budget;
+            # explicitly send null so structured responses have room to finish.
+            # Cap at the starter-plan ceiling unless the user raises the setting.
+            return ChatSarvam(
                 model=self.model,
-                contents=user_content,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_json_schema=self.schema.model_json_schema(),
-                    temperature=0,
-                    max_output_tokens=1024,
-                ),
+                api_key=self.api_key,
+                temperature=0,
+                max_tokens=min(self.max_tokens, settings.SARVAM_LLM_MAX_TOKENS),
+                max_retries=self.max_retries,
+                model_kwargs={"reasoning_effort": None},
             )
-        finally:
-            client.close()
-        if isinstance(response.parsed, self.schema):
-            return response.parsed.model_dump()
-        if response.parsed is not None:
-            return self.schema.model_validate(response.parsed).model_dump()
-        if not response.text:
-            raise ValueError("provider did not return an action object")
-        return self.schema.model_validate_json(response.text).model_dump()
+        if self.adapter == "google_genai":
+            from langchain_google_genai import ChatGoogleGenerativeAI
 
+            return ChatGoogleGenerativeAI(
+                model=self.model,
+                google_api_key=self.api_key,
+                temperature=0,
+                max_output_tokens=self.max_tokens,
+                timeout=self.timeout,
+                max_retries=self.max_retries,
+            )
+        if self.adapter == "groq":
+            from langchain_groq import ChatGroq
 
-class StructuredParser:
-    def __init__(self, schema, *, api_key, base_url, model):
-        self.schema = schema
-        self.api_key, self.base_url, self.model = api_key, base_url, model
+            return ChatGroq(
+                model=self.model,
+                api_key=self.api_key,
+                temperature=0,
+                max_tokens=self.max_tokens,
+                request_timeout=self.timeout,
+                max_retries=self.max_retries,
+            )
+        if self.adapter == "openai_compatible":
+            from langchain_openai import ChatOpenAI
+
+            return ChatOpenAI(
+                model=self.model,
+                api_key=self.api_key,
+                base_url=self.base_url,
+                temperature=0,
+                max_tokens=self.max_tokens,
+                timeout=self.timeout,
+                max_retries=self.max_retries,
+            )
+        raise ValueError(f"unsupported chat provider: {self.provider}")
 
     def invoke(self, messages):
-        from openai import OpenAI
-        # JSON mode supports the action's open-ended parameters dictionary.
-        # Pydantic owns schema validation; JSON mode alone does not enforce it.
-        instructions = {
-            "role": "system",
-            "content": "Return exactly one JSON object conforming to this schema: "
-                       + json.dumps(self.schema.model_json_schema()),
-        }
-        with OpenAI(api_key=self.api_key, base_url=self.base_url,
-                    max_retries=2, timeout=10) as client:
-            response = client.chat.completions.create(
-                model=self.model, messages=[instructions, *messages],
-                temperature=0, max_tokens=1024,
-                response_format={"type": "json_object"},
-            )
-        if not response.choices or response.choices[0].finish_reason != "stop":
-            raise ValueError("provider did not return a complete action")
-        message = response.choices[0].message
-        if getattr(message, "refusal", None) or not message.content:
-            raise ValueError("provider did not return an action object")
-        # JSON mode guarantees syntactically valid JSON, not the requested
-        # field names. The caller performs schema validation after applying
-        # any provider-shape compatibility mapping.
-        return json.loads(message.content)
+        try:
+            model = self._chat_model()
+            structured = model.with_structured_output(self.schema, include_raw=True)
+        except (ValueError, TypeError) as exc:
+            raise LLMConfigurationError("LLM adapter configuration failed validation") from exc
+
+        try:
+            envelope = structured.invoke([
+                (message["role"], message["content"]) for message in messages
+            ])
+        except ValidationError as exc:
+            # With include_raw=True, response parsing errors are returned in the
+            # envelope. A validation error raised here belongs to the SDK call.
+            raise LLMConfigurationError("LLM SDK invocation failed validation") from exc
+        if not isinstance(envelope, dict) or not {"raw", "parsed", "parsing_error"}.issubset(envelope):
+            raise LLMConfigurationError("LLM adapter returned an invalid structured-output envelope")
+        raw = envelope["raw"]
+        parsing_error = envelope["parsing_error"]
+        if parsing_error is not None:
+            if not isinstance(parsing_error, Exception):
+                raise LLMConfigurationError("LLM adapter returned an invalid parsing error")
+            raise StructuredOutputError(
+                f"Model response failed structured-output parsing ({type(parsing_error).__name__}): {parsing_error}",
+                raw_output=raw,
+            ) from parsing_error
+        result = envelope["parsed"]
+        if isinstance(result, self.schema):
+            return result.model_dump()
+        try:
+            return self.schema.model_validate(result).model_dump()
+        except ValidationError as exc:
+            raise StructuredOutputError(
+                "Model response failed schema validation",
+                raw_output=raw if raw is not None else result,
+            ) from exc
 
 
-def structured_parser(schema):
+def structured_parser(schema, *, provider, model, timeout=20,
+                      max_tokens=1024, max_retries=0):
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError('chat model must not be empty')
+    model = model.strip()
     if settings.OFFLINE_MODE:
         raise ValueError("chat providers are unavailable in offline mode")
-    if settings.LLM_PROVIDER == "groq":
-        if not settings.GROQ_API_KEY:
-            raise ValueError("configured chat provider key is missing")
-        return StructuredParser(schema, api_key=settings.GROQ_API_KEY,
-                                base_url="https://api.groq.com/openai/v1",
-                                model=settings.GROQ_LLM_MODEL)
-    if not settings.GEMINI_API_KEY:
-        raise ValueError("configured chat provider key is missing")
-    return GeminiStructuredParser(schema, api_key=settings.GEMINI_API_KEY,
-                                  model=settings.GEMINI_LLM_MODEL)
+    providers = current_routing().providers
+    if provider not in providers:
+        raise ValueError(f"unsupported chat provider: {provider}")
+    configured = providers[provider]
+    api_key = setting_value(configured.api_key_setting)
+    if not api_key:
+        raise ValueError(f"configured {provider} chat provider key is missing")
+    base_url = setting_value(configured.base_url_setting) if configured.base_url_setting else None
+    if configured.adapter == 'openai_compatible' and not base_url:
+        raise ValueError(f"configured {provider} chat provider URL is missing")
+    return LangChainStructuredParser(
+        schema,
+        provider=provider,
+        adapter=configured.adapter,
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        timeout=timeout,
+        max_tokens=max_tokens,
+        max_retries=max_retries,
+    )

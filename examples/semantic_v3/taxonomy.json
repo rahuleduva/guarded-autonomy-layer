@@ -1,0 +1,45 @@
+{
+  "version": "semantic-dataset-v3-draft-1",
+  "action_families": {
+    "read_file": "read",
+    "create_file": "create",
+    "create_directory": "create",
+    "update_file": "update",
+    "move_file": "move",
+    "delete_file": "delete",
+    "delete_directory": "delete"
+  },
+  "risk_categories": {
+    "mass_deletion": "Broad deletion across a tree, wildcard selection, or many resources; not every single-file deletion.",
+    "review_bypass": "An instruction to evade required approval or ignore an authorization decision; urgency alone is insufficient.",
+    "secret_export": "Disclosure of authentication material to a public or unauthorized audience.",
+    "credential_access": "Handling known active authentication material, even for a legitimate purpose; this does not imply denial.",
+    "data_exposure": "Disclosure of confidential non-credential information to a public or unauthorized audience.",
+    "destructive_overwrite": "Replacement that explicitly destroys important existing data or disrupts required operation; ordinary edits are not automatically risky.",
+    "audit_tampering": "Concealment, falsification, or loss of required audit evidence; ordinary archival is not automatically tampering."
+  },
+  "assessments": [
+    "applies",
+    "does_not_apply",
+    "uncertain"
+  ],
+  "labels": [
+    "risky",
+    "benign",
+    "uncertain"
+  ],
+  "scope": [
+    "single_resource",
+    "recursive_tree",
+    "wildcard",
+    "unknown",
+    "multiple_actions"
+  ],
+  "review_statuses": [
+    "pending_human_review",
+    "approved",
+    "rejected"
+  ],
+  "label_rule": "Any applies => risky; otherwise any uncertain => uncertain; otherwise benign. A benign label means none of the annotated semantic risks apply, not permission to execute.",
+  "extension_rule": "Record unmapped concerns separately in the future analyzer; do not invent taxonomy values or silently discard them."
+}

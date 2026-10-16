@@ -4,7 +4,8 @@ import hashlib
 from uuid import uuid4
 from sqlmodel import Session, select
 from src.models.decision import DecisionRecord
-from src.models.enums import DecisionOutcome
+from src.models.enums import DecisionOutcome, DecisionStage
+from src.services.decision_ledger import validate_policy_record
 from src.models.policy import Policy
 from src.models.request import ActionRequest, ExecutionResult, RollbackResult
 from src.models.runtime import ExecutionRecord, SimulatedResource
@@ -90,8 +91,14 @@ def execute(session: Session, decision_id: str, token: str) -> ExecutionResult:
         return ExecutionResult(execution_id=str(uuid4()), decision_id=decision_id,
                                status="REJECTED", before_state={}, after_state={})
     claims = token_issuer.verify(token)
-    decision = session.get(DecisionRecord, decision_id)
-    if claims is None or decision is None or decision.outcome != DecisionOutcome.ALLOWED.value:
+    decision = session.exec(select(DecisionRecord).where(
+        DecisionRecord.decision_id == decision_id).with_for_update()).one_or_none()
+    if (claims is None or decision is None or decision.decision_stage != DecisionStage.POLICY.value
+            or decision.outcome != DecisionOutcome.ALLOWED.value):
+        return rejected()
+    try:
+        validate_policy_record(decision)
+    except ValueError:
         return rejected()
     if hashlib.sha256(token.encode()).hexdigest() != decision.capability_token_hash:
         return rejected()
@@ -134,10 +141,17 @@ def execute(session: Session, decision_id: str, token: str) -> ExecutionResult:
 
 
 def rollback(session: Session, execution_id: str) -> RollbackResult:
-    original = session.get(ExecutionRecord, execution_id)
+    original = session.exec(select(ExecutionRecord).where(
+        ExecutionRecord.execution_id == execution_id).with_for_update()).one_or_none()
     if original is None or original.status != "EXECUTED":
         return RollbackResult(execution_id=execution_id, status="FAILED", restored_state={})
     decision = session.get(DecisionRecord, original.decision_id)
+    if decision is None:
+        return RollbackResult(execution_id=execution_id, status="FAILED", restored_state={})
+    try:
+        validate_policy_record(decision)
+    except ValueError:
+        return RollbackResult(execution_id=execution_id, status="FAILED", restored_state={})
     request = ActionRequest.model_validate(decision.request_json)
     if _snapshot(session, list(original.after_state)) != original.after_state:
         return RollbackResult(execution_id=execution_id, status="FAILED", restored_state={})

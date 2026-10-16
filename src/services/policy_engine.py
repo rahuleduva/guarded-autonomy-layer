@@ -255,6 +255,15 @@ def _first_deny_match(
     return None
 
 
+def environment_requires_review(request: ActionRequest, environment_rules: dict) -> bool:
+    """Shared environment gate for evaluation and review-package explanation."""
+    return (
+        request.action_class in (environment_rules.get("prod_escalates") or [])
+        and request.environment not in
+        (environment_rules.get("destructive_allowed_environments") or [])
+    )
+
+
 def evaluate(
     request: ActionRequest,
     policy: Policy,
@@ -408,15 +417,7 @@ def _evaluate(
         and approval.get("action_fingerprint") == fingerprint(request)
     )
 
-    prod_escalates = environment_rules.get("prod_escalates") or []
-    destructive_allowed = (
-        environment_rules.get("destructive_allowed_environments") or []
-    )
-    if (
-        request.action_class in prod_escalates
-        and request.environment not in destructive_allowed
-        and not approved
-    ):
+    if environment_requires_review(request, environment_rules) and not approved:
         return _result(
             request,
             policy,

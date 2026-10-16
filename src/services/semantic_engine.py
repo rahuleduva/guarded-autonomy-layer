@@ -14,7 +14,6 @@ from src.services import embeddings, reranker
 from src.services.blast_radius import estimate
 from src.services.semantic_corpus import action_family, load_corpus, RISK_REASONS
 
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 # Qdrant cosine scores can exceed 1 by a few ulps due to floating-point
 # rounding. Accept only negligible drift, then clamp to the mathematical range.
 _COSINE_SCORE_TOLERANCE = 1e-6
@@ -107,15 +106,17 @@ def _load_model(model_name: str):
 
 
 def _embedding_model():
-    return _load_model(settings.SENTENCE_TRANSFORMER_MODEL)
+    return _load_model(embeddings.selected_profile().model)
 
 
 def _vector(text: str) -> list[float]:
     def compute():
-        if settings.EMBEDDING_PROVIDER == "gemini":
+        if embeddings.provider_name() == "gemini":
             return embeddings.gemini_embed(text)
-        if settings.EMBEDDING_PROVIDER == "jina":
+        if embeddings.provider_name() == "jina":
             return embeddings.jina_embed(text)
+        if embeddings.provider_name() == "aicredits":
+            return embeddings.aicredits_embed(text)
         return _embedding_model().encode(text, normalize_embeddings=True).tolist()
 
     return embeddings.query_embedding(text, compute)

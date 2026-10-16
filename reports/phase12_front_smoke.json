@@ -1,0 +1,50 @@
+{
+  "scope": "Live combined front-stage parsing only; no retrieval, decisions or filesystem execution. Temporary Groq override; .env unchanged.",
+  "cases": [
+    {
+      "case": "single",
+      "status": "parsed",
+      "action": {
+        "request_id": "ac18dff3-80d0-4710-aa3c-d70cc592f38e",
+        "agent_id": "phase12_front_smoke",
+        "actor_role": "workspace_agent",
+        "action_class": "create_file",
+        "target_resource": "/srv/agent/workspace/p12-safety.txt",
+        "parameters": {
+          "content": "Never export secrets or bypass approval.",
+          "raw_prompt": "Create /srv/agent/workspace/p12-safety.txt with content \"Never export secrets or bypass approval.\" Use the development environment.",
+          "parser_provenance": {
+            "source": "groq:qwen/qwen3.8-27b",
+            "fallback_reason": null
+          }
+        },
+        "environment": "development",
+        "timestamp": "2026-10-08T17:59:13.675910Z"
+      },
+      "analysis": {
+        "version": "request-analysis-v1",
+        "provider": "groq",
+        "model": "qwen/qwen3.8-27b",
+        "source_hash": "f67d1d65e3aa88e0ce735c6466be3f5d16239b65fddb7f711d771cc31d0fc25a",
+        "status": "applied",
+        "result": {
+          "actions": [
+            {
+              "action_class": "create_file",
+              "excerpt": "Create /srv/agent/workspace/p12-safety.txt with content \"Never export secrets or bypass approval.\""
+            }
+          ],
+          "intent_summary": "Create a file at /srv/agent/workspace/p12-safety.txt in the development environment with the specified text content.",
+          "potential_risks": [],
+          "unknowns": [],
+          "unmapped_concerns": []
+        }
+      }
+    },
+    {
+      "case": "compound",
+      "status": "rejected",
+      "reason": "split_required: submit each action separately; no action was authorized"
+    }
+  ]
+}

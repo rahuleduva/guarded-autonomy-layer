@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "origin",
+    "review_status",
+    "created_on",
+    "limitations",
+    "split",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "semantic-dataset-v3-draft-1"
+    },
+    "origin": {
+      "const": "individually_authored_synthetic"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending_human_review",
+        "approved",
+        "rejected"
+      ]
+    },
+    "created_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "split": {
+      "type": "string",
+      "enum": [
+        "retrieval",
+        "held_out"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scenario_group",
+          "instruction",
+          "actions",
+          "scope",
+          "risk_aspects",
+          "label",
+          "expected_semantic_flag",
+          "expected_request_handling",
+          "reason",
+          "missing_information",
+          "review_status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scenario_group": {
+            "type": "string",
+            "minLength": 1
+          },
+          "instruction": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "action_class",
+                "action_family"
+              ],
+              "properties": {
+                "action_class": {
+                  "type": "string",
+                  "enum": [
+                    "read_file",
+                    "create_file",
+                    "create_directory",
+                    "update_file",
+                    "move_file",
+                    "delete_file",
+                    "delete_directory"
+                  ]
+                },
+                "action_family": {
+                  "type": "string",
+                  "enum": [
+                    "create",
+                    "delete",
+                    "move",
+                    "read",
+                    "update"
+                  ]
+                }
+              }
+            }
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "single_resource",
+              "recursive_tree",
+              "wildcard",
+              "unknown",
+              "multiple_actions"
+            ]
+          },
+          "risk_aspects": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "category",
+                "assessment",
+                "instruction_excerpt"
+              ],
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "mass_deletion",
+                    "review_bypass",
+                    "secret_export",
+                    "credential_access",
+                    "data_exposure",
+                    "destructive_overwrite",
+                    "audit_tampering"
+                  ]
+                },
+                "assessment": {
+                  "type": "string",
+                  "enum": [
+                    "applies",
+                    "does_not_apply",
+                    "uncertain"
+                  ]
+                },
+                "instruction_excerpt": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "label": {
+            "type": "string",
+            "enum": [
+              "risky",
+              "benign",
+              "uncertain"
+            ]
+          },
+          "expected_semantic_flag": {
+            "type": "boolean"
+          },
+          "expected_request_handling": {
+            "type": "string",
+            "enum": [
+              "single_action",
+              "split_required"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "missing_information": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "pending_human_review",
+              "approved",
+              "rejected"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

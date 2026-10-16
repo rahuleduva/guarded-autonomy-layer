@@ -1,5 +1,7 @@
 # Guarded Autonomy Layer
 
+Human-review package and approval behavior is documented in [docs/human_review_finalization.md](docs/human_review_finalization.md).
+
 A FastAPI backend that evaluates agent actions before authorizing execution. It combines deterministic policy rules, semantic risk evidence, human review, and recorded autonomy history. Every decision is logged with the policy and evidence needed to replay it later.
 
 Execution operates on **synthetic resources stored in the database**. File and directory paths identify those resources; execution does not change files on the host machine.
@@ -69,12 +71,16 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
 SECRET_KEY=REPLACE_WITH_A_RANDOM_SIGNING_SECRET
 DEV_DIAGNOSTICS=false
 
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=YOUR_GOOGLE_API_KEY
-GEMINI_LLM_MODEL=gemini-3.5-flash-lite
+AI_CREDITS_API_URL=https://YOUR_GATEWAY/v1
+AI_CREDITS_API_KEY=YOUR_AI_CREDITS_API_KEY
+SARVAM_API_KEY=YOUR_SARVAM_API_KEY
+# Optional; defaults to 4096 (starter-plan output ceiling)
+SARVAM_LLM_MAX_TOKENS=4096
 
-EMBEDDING_PROVIDER=gemini
-GEMINI_EMBEDDING_MODEL=gemini-embedding-2
+# Gemini key is still required when Gemini embeddings are selected
+GEMINI_API_KEY=YOUR_GOOGLE_API_KEY
+
+# Select gemini_current under embeddings.selected in config/llm_routing.yaml
 GEMINI_EMBEDDING_DIMENSIONS=768
 
 QDRANT_URL=https://YOUR_CLUSTER.cloud.qdrant.io
@@ -123,6 +129,13 @@ curl http://127.0.0.1:8000/api/v1/health
 ```
 
 Expected response: `{"status":"ok"}`. Health confirms that the API responds; online readiness also requires database and provider checks.
+
+Evaluation responses include an `X-Correlation-ID` header. Its sanitized
+stage events are stored separately from decision records, including requests
+that fail before a decision is created. Inspect recent failure and provider
+fallback rates with `PYTHONPATH=. python scripts/monitor_attempts.py --hours 24`.
+See [request-attempt monitoring](docs/request_attempt_monitoring.md) for the
+event fields, failure behavior, and alert thresholds.
 
 ## API examples
 
@@ -215,21 +228,21 @@ See `/docs` for the complete request and response schemas, including promotion p
 
 | Component | Supported configuration |
 |---|---|
-| Natural-language parser | `LLM_PROVIDER=gemini` or `groq` |
-| Embeddings | `EMBEDDING_PROVIDER=gemini`, `sentence_transformers`, or `jina` |
+| Natural-language parser, analyzer, judge | Named purpose routes in `config/llm_routing.yaml` |
+| Embeddings | `embeddings.selected` in `config/llm_routing.yaml` |
 | Vector storage | Qdrant Cloud through `QDRANT_URL` and `QDRANT_API_KEY` |
 | Embedding cache | Optional Redis through `REDIS_URL` |
 | Reranking | Optional Jina adapter; `disabled`, `observe`, or `review` mode |
 
-Gemini parsing uses `google-genai` with native JSON-schema output. Groq parsing uses the `openai` client with JSON mode. Both validate results locally with Pydantic and grounding checks. Groq requires `GROQ_API_KEY` and `GROQ_LLM_MODEL`. Provider model IDs are configurable; account access and availability must be checked for your credentials.
+The routing file defines providers (adapter and credential setting), named model profiles, purpose-specific model order, and fallback policies. See [LLM routing](docs/llm_routing.md) for configuration examples. The request parser, standalone analyzer, and semantic judge use these routes. The provider factory selects `ChatOpenAI`, `ChatGoogleGenerativeAI`, `ChatGroq`, or `ChatSarvam` from the configured adapter. Credentials and gateway URLs stay in `.env`; changing a route requires restarting FastAPI. Parser fallback shares its three-call budget with LangGraph correction retries. Gemini embeddings continue to use `google-genai`; chat routing does not change embedding vectors or the Qdrant collection.
 
-Sentence Transformers requires the configured model to be cached locally. The optional Jina embedding adapter uses `JINA_API_KEY`, `JINA_EMBEDDING_URL`, and `JINA_EMBEDDING_MODEL`. Jina adapters remain available in code, but the recorded online run used Gemini embeddings and disabled reranking.
+Sentence Transformers requires the selected model to be cached locally. The optional Jina embedding adapter uses `JINA_API_KEY` and `JINA_EMBEDDING_URL`; its model ID is in the routing YAML. Jina adapters remain available in code, but the recorded online run used Gemini embeddings and disabled reranking.
 
 Semantic retrieval filters by embedding specification, corpus fingerprint, action family, and benign/risky label. Risks marked applicable to every operation remain searchable. The classifier compares the strongest relevant risky and benign examples; a close benign match does not itself grant policy permission.
 
 Redis caches query embeddings using the project namespace, embedding specification, and a hash of the input text. The default TTL is one day. Redis failure falls through to the embedding provider. This cache does not cache LLM parsing responses or entire policy decisions.
 
-Online parser errors are surfaced. Unavailable online semantic evidence requests review. There is no LLM judge in the current decision flow.
+Online parser errors are surfaced. The optional semantic analysis and judge pipeline records evidence and requests review when evidence is unavailable; deterministic policy checks remain the authority for permissions.
 
 ## Replay and compensation
 
@@ -307,3 +320,17 @@ Then apply migrations and start the API as above; skip cloud advisory seeding. E
 - [Autonomy and promotion](docs/phase5_autonomy.md)
 - [Online E2E plan](docs/ONLINE_E2E_PLAN.md)
 - [Granular online runbook](docs/ONLINE_E2E_GRANULAR_RUNBOOK.md)
+
+### Phase 12: two-stage semantic assessment
+
+The optional enhancement adds grounded action/risk analysis, operation- and risk-focused Qdrant retrieval, and an LLM judge with per-risk findings. `SEMANTIC_PIPELINE_MODE` defaults to `baseline`; `observe` records the new assessment, while `review` uses its validated advisory findings. Deterministic policy checks remain authoritative, and replay consumes stored evidence without provider calls.
+
+See the [phase plan](docs/phase12_semantic_intelligence_plan.md), [configuration and verification runbook](docs/PHASE12_RUNBOOK.md), and [draft dataset package](examples/semantic_v3/README.md). V3 data requires a separate collection and explicit review/provisional-data selection before seeding. No production accuracy improvement has yet been established.
+
+The [combined evaluation suite](examples/semantic_evaluation_combined_v1/README.md)
+retains all 32 original evaluation cases and 56 newer cases. Run the 88-case
+development/regression evaluation with
+`python -m src.cli evaluate-semantic-v3 --suite semantic-combined-v1 --output reports/semantic_combined_v1.json`.
+Reports include detailed parser comparisons and totals for each source suite.
+
+Natural-language requests can return `needs_clarification` with saved questions and an interpretation ID. See [request clarification and grounding](docs/request_clarification.md) for the migration, API examples, and audit tables.

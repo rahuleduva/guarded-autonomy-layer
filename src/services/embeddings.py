@@ -5,16 +5,28 @@ import json
 import logging
 import math
 from src.config import settings
+from src.services import monitoring
+from src.services.llm_routing import current_routing
 
 logger = logging.getLogger(__name__)
 
 
+def selected_profile():
+    catalog = current_routing().embeddings
+    return catalog.models[catalog.selected]
+
+
+def provider_name() -> str:
+    return selected_profile().provider
+
+
 def specification() -> str:
-    if settings.EMBEDDING_PROVIDER == "gemini":
-        return f"gemini:{settings.GEMINI_EMBEDDING_MODEL}:{settings.GEMINI_EMBEDDING_DIMENSIONS}:similarity-v1"
-    if settings.EMBEDDING_PROVIDER == "jina":
-        return f"jina:{settings.JINA_EMBEDDING_MODEL}:{settings.JINA_EMBEDDING_DIMENSIONS}:text-matching-v1"
-    return f"sentence_transformers:{settings.SENTENCE_TRANSFORMER_MODEL}:similarity-v1"
+    profile = selected_profile()
+    if profile.provider == "gemini":
+        return f"gemini:{profile.model}:{settings.GEMINI_EMBEDDING_DIMENSIONS}:similarity-v1"
+    if profile.provider == "jina":
+        return f"jina:{profile.model}:{settings.JINA_EMBEDDING_DIMENSIONS}:text-matching-v1"
+    return f"{profile.provider}:{profile.model}:similarity-v1"
 
 
 def normalize(vector) -> list[float]:
@@ -59,22 +71,30 @@ def query_embedding(text: str, compute) -> list[float]:
             if cached is not None:
                 vector = normalize(json.loads(cached))
                 expected_size = (settings.GEMINI_EMBEDDING_DIMENSIONS
-                                 if settings.EMBEDDING_PROVIDER == "gemini"
+                                 if provider_name() == "gemini"
                                  else settings.JINA_EMBEDDING_DIMENSIONS
-                                 if settings.EMBEDDING_PROVIDER == "jina" else len(vector))
+                                 if provider_name() == "jina" else len(vector))
                 if len(vector) == expected_size:
+                    monitoring.record("embedding_cache", "hit", provider="redis")
                     return vector
                 logger.warning("Redis embedding cache entry has the wrong vector size; recomputing")
+                monitoring.record("embedding_cache", "degraded", provider="redis",
+                                  error_type="VectorSizeMismatch")
         except Exception as exc:
             logger.warning("Redis embedding cache read skipped (%s)", type(exc).__name__)
+            monitoring.record("embedding_cache", "unavailable", provider="redis",
+                              error_type=type(exc).__name__)
 
-    vector = normalize(compute())
+    with monitoring.span("embedding", provider=provider_name()):
+        vector = normalize(compute())
     if client is not None and key is not None:
         try:
             client.setex(key, settings.EMBEDDING_CACHE_TTL_SECONDS,
                          json.dumps(vector, separators=(",", ":")))
         except Exception as exc:
             logger.warning("Redis embedding cache write skipped (%s)", type(exc).__name__)
+            monitoring.record("embedding_cache", "unavailable", provider="redis",
+                              error_type=type(exc).__name__)
     return vector
 
 
@@ -86,7 +106,7 @@ def gemini_embed(text: str) -> list[float]:
     client = genai.Client(api_key=settings.GEMINI_API_KEY,
                           http_options=types.HttpOptions(timeout=10000))
     try:
-        result = client.models.embed_content(model=settings.GEMINI_EMBEDDING_MODEL,
+        result = client.models.embed_content(model=selected_profile().model,
             contents=f"task: sentence similarity | query: {text}",
             config=types.EmbedContentConfig(output_dimensionality=settings.GEMINI_EMBEDDING_DIMENSIONS))
     finally:
@@ -113,7 +133,7 @@ def jina_embed(text: str) -> list[float]:
                           follow_redirects=False) as client:
             response = client.post(str(endpoint),
                 headers={"Authorization": "Bearer " + key},
-                json={"model": settings.JINA_EMBEDDING_MODEL, "input": [text],
+                json={"model": selected_profile().model, "input": [text],
                       "task": "text-matching", "dimensions": settings.JINA_EMBEDDING_DIMENSIONS,
                       "embedding_type": "float", "normalized": True})
     except Exception as exc:
@@ -131,3 +151,22 @@ def jina_embed(text: str) -> list[float]:
         return normalize(vector)
     except Exception:
         raise ValueError("Jina embedding returned an invalid vector or unexpected dimensions") from None
+
+
+def aicredits_embed(text: str) -> list[float]:
+    """OpenAI-compatible embedding endpoint; model IDs come from the catalog."""
+    import httpx
+
+    if settings.OFFLINE_MODE or not settings.AI_CREDITS_API_KEY:
+        raise ValueError("AICredits embedding is unavailable in offline mode or without a key")
+    endpoint = httpx.URL(settings.AI_CREDITS_API_URL.rstrip("/") + "/embeddings")
+    if endpoint.scheme != "https" or not endpoint.host or endpoint.userinfo:
+        raise ValueError("invalid AICredits embedding endpoint")
+    with httpx.Client(timeout=20, follow_redirects=False) as client:
+        response = client.post(str(endpoint), headers={"Authorization": "Bearer " + settings.AI_CREDITS_API_KEY},
+                               json={"model": selected_profile().model, "input": text})
+    response.raise_for_status()
+    data = response.json().get("data")
+    if not isinstance(data, list) or len(data) != 1 or data[0].get("index") != 0:
+        raise ValueError("AICredits embedding returned an unexpected result")
+    return normalize(data[0]["embedding"])

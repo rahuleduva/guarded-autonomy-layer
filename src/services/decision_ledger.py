@@ -17,7 +17,45 @@ from uuid import uuid4
 from sqlmodel import Session
 
 from src.models.decision import DecisionRecord
-from src.models.request import ActionRequest, EvaluationResult
+from src.models.decision_contracts import (
+    DECISION_WRITE_ADAPTER, DecisionWriteBase, ParserDecisionEvidence,
+    ParserDecisionWrite, PolicyDecisionWrite,
+)
+from src.models.request import ActionRequest, EvaluationResult, NaturalLanguageRequest
+from src.services import monitoring
+
+
+def append_decision(session: Session, payload: DecisionWriteBase) -> DecisionRecord:
+    """Validate even internally-created models before a ledger insertion."""
+    validated = DECISION_WRITE_ADAPTER.validate_python(payload)
+    record = DecisionRecord(**validated.table_values())
+    session.add(record)
+    session.flush()
+    monitoring.link_decision(record.decision_id)
+    return record
+
+
+def validate_policy_record(record: DecisionRecord) -> PolicyDecisionWrite:
+    """Reject parser-stage or malformed records at policy-only boundaries."""
+    return PolicyDecisionWrite.model_validate(record.model_dump())
+
+
+def save_policy_record(session: Session, record: DecisionRecord) -> None:
+    validate_policy_record(record)
+    session.add(record)
+    session.flush()
+
+
+def log_parser_rejection(session: Session, request: NaturalLanguageRequest,
+                         reason: str, evidence: ParserDecisionEvidence) -> DecisionRecord:
+    source = NaturalLanguageRequest.model_validate(request)
+    record = append_decision(session, ParserDecisionWrite(
+        request_id=source.request_id, agent_id=source.agent_id, actor_role=source.actor_role,
+        request_json=source, reason=reason, evidence_json=evidence,
+    ))
+    monitoring.record("parser_decision", "denied", decision_id=record.decision_id,
+                      validation_errors=evidence.model_dump(mode="json")["validation_errors"])
+    return record
 
 
 def _as_str(value: Any) -> str:
@@ -42,11 +80,14 @@ def log_decision(
     duplicate ``request_id`` -- so that a failed audit write aborts the
     request instead of silently leaving it unlogged (A3).
     """
+    # Do not trust model_copy/model_construct or mutable model instances as validation.
+    request = ActionRequest.model_validate(request)
+    result = EvaluationResult.model_validate(result)
     evidence: Dict[str, Any] = dict(result.evidence)
     if result.blast_radius:
         evidence["blast_radius"] = result.blast_radius
 
-    record = DecisionRecord(
+    payload = PolicyDecisionWrite(
         decision_id=str(uuid4()),
         request_id=request.request_id,
         agent_id=request.agent_id,
@@ -63,6 +104,4 @@ def log_decision(
         capability_token_hash=capability_token_hash,
         reviewer_id=reviewer_id,
     )
-    session.add(record)
-    session.flush()
-    return record
+    return append_decision(session, payload)

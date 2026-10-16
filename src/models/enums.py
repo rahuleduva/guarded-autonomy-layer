@@ -25,7 +25,17 @@ class DecisionOutcome(str, Enum):
     SHADOW_LOGGED = "SHADOW_LOGGED"
 
 
+class DecisionStage(str, Enum):
+    PARSER = "PARSER"
+    POLICY = "POLICY"
+
+
 class EscalationStatus(str, Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+
+class HumanReviewDecision(str, Enum):
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"

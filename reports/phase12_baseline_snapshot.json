@@ -1,0 +1,43 @@
+{
+  "observed_on": "2026-10-09",
+  "scope": "Read-only cloud preflight during Phase 12 implementation; no seed or data mutations performed",
+  "configuration": {
+    "pipeline_mode": "baseline",
+    "offline_mode": false,
+    "llm_provider": "gemini",
+    "embedding_provider": "gemini",
+    "baseline_collection": "policy_prompts",
+    "v3_collection": "semantic_advisory_v3",
+    "redis_namespace": "guarded-autonomy-layer"
+  },
+  "database_counts": {
+    "policies": 12,
+    "decision_records": 149,
+    "autonomy_state": 39,
+    "escalation_queue": 74
+  },
+  "qdrant": {
+    "baseline_points": 26,
+    "baseline_dimensions": 768,
+    "baseline_distance": "Cosine",
+    "v3_collection_exists": false
+  },
+  "redis_ping": true,
+  "local_fastapi_health": "No server listening on port 8000 at verification time",
+  "limitations": "Counts are an observation, not a content audit or semantic accuracy benchmark. No credentials included.",
+  "post_trial_counts": {
+    "database": {
+      "policies": 12,
+      "decision_records": 152,
+      "autonomy_state": 41,
+      "escalation_queue": 76
+    },
+    "qdrant": {
+      "baseline_points": 26,
+      "v3_points": 64
+    },
+    "redis_ping": true,
+    "localhost_fastapi": "stopped after E2E run"
+  },
+  "post_trial_note": "Three synthetic E2E decisions were added; two synthetic risk escalations were rejected. The v2 Qdrant collection stayed at 26 points. The v3 collection contains 64 provisional points."
+}

@@ -1,0 +1,17 @@
+{
+  "version": "semantic-evaluation-merge-review-v1",
+  "reviewed_on": "2026-10-12",
+  "reviewer": "assistant_local_review_not_human_approval",
+  "source_paths": [
+    "examples/semantic_v3/evaluation.json",
+    "examples/semantic_evaluation_v1/cases.json"
+  ],
+  "source_records_preserved": true,
+  "removed_case_ids": [],
+  "parser_annotation_issues": {
+    "eval-deletion-03": "Reset does not supply a resource type or exact operation. The inherited delete_directory label is an interpretation hypothesis; do not require that class or an executable action from the parser.",
+    "eval-bypass-03": "The extensionless target is not explicitly a file or directory and file content is absent. Preserve the inherited directory hypothesis for history, but require clarification/rejection rather than invented resource type."
+  },
+  "conclusion": "Schema compatible; preserve all 88 records, add parser expectations, exclude ambiguous action hypotheses from strict class scoring.",
+  "clarification_behavior": "Subsequently requested by the user and implemented as a recorded clarification flow; the parser expectations exercise this new behavior, not an original source-suite requirement."
+}

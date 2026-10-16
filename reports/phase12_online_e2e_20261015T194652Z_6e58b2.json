@@ -1,0 +1,67 @@
+{
+  "run_id": "20261015T194652Z_6e58b2",
+  "created_at": "2026-10-15T19:46:52.778734+00:00",
+  "execution_endpoints_called": false,
+  "scenarios": [
+    {
+      "name": "benign_quoted_risk_terms",
+      "passed": false,
+      "http_status": 200,
+      "decision_id": "191014f2-e03e-410d-988d-2fe8b2a02e82",
+      "semantic_summary": {
+        "completion": "partial",
+        "assessment": "not_assessed",
+        "requires_review": true,
+        "applicable_risks": [],
+        "uncertain_risks": [],
+        "reasons": [
+          {
+            "code": "judge_unavailable",
+            "stage": "judgment",
+            "message": "Risk judgment could not be completed after the configured attempts.",
+            "failure_category": "provider_unavailable",
+            "query_id": null,
+            "risk_category": null
+          }
+        ]
+      },
+      "checks": {
+        "evaluation_completed": true,
+        "expected_action": true,
+        "semantic_review_mode": true,
+        "semantic_complete": false,
+        "quoted_content_is_benign": false,
+        "no_token": true,
+        "consistent_replay": true
+      }
+    },
+    {
+      "name": "compound_action_rejected",
+      "passed": true,
+      "http_status": 400,
+      "decision_id": "c2bb70e5-5e95-4088-931f-daba1db5a0a4",
+      "checks": {
+        "explicit_parser_rejection": true,
+        "no_authorization": true
+      }
+    },
+    {
+      "name": "multiple_risk_aspects",
+      "passed": false,
+      "http_status": 400,
+      "decision_id": null,
+      "semantic_summary": {},
+      "checks": {
+        "evaluation_completed": false,
+        "expected_action": false,
+        "semantic_review_mode": false,
+        "semantic_complete": false,
+        "risky_action_held": false,
+        "both_risks_detected": false,
+        "no_token": true
+      }
+    }
+  ],
+  "health_status": 200,
+  "passed": false
+}

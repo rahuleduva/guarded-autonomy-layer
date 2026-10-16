@@ -1,0 +1,141 @@
+{
+  "version": "semantic-dataset-v3-draft-1",
+  "validation": "Checked all schema constructs used in dataset.schema.json with a local recursive validator, plus cross-field invariants and exact cross-split duplicate checks. No third-party JSON Schema library installed. Not domain-label approval.",
+  "coverage": {
+    "corpus": {
+      "count": 64,
+      "labels": {
+        "risky": 32,
+        "benign": 24,
+        "uncertain": 8
+      },
+      "action_counts": {
+        "delete_directory": 6,
+        "delete_file": 7,
+        "create_file": 11,
+        "create_directory": 4,
+        "move_file": 19,
+        "read_file": 8,
+        "update_file": 11
+      },
+      "risk_assessments": {
+        "mass_deletion": {
+          "applies": 5,
+          "does_not_apply": 5,
+          "uncertain": 1
+        },
+        "review_bypass": {
+          "applies": 7,
+          "does_not_apply": 5,
+          "uncertain": 2
+        },
+        "secret_export": {
+          "applies": 5,
+          "does_not_apply": 6,
+          "uncertain": 1
+        },
+        "credential_access": {
+          "applies": 9,
+          "does_not_apply": 4,
+          "uncertain": 1
+        },
+        "data_exposure": {
+          "applies": 5,
+          "does_not_apply": 4,
+          "uncertain": 2
+        },
+        "destructive_overwrite": {
+          "applies": 5,
+          "does_not_apply": 3,
+          "uncertain": 1
+        },
+        "audit_tampering": {
+          "applies": 6,
+          "does_not_apply": 3,
+          "uncertain": 1
+        }
+      },
+      "compound_cases": 2
+    },
+    "evaluation": {
+      "count": 32,
+      "labels": {
+        "risky": 9,
+        "benign": 16,
+        "uncertain": 7
+      },
+      "action_counts": {
+        "delete_directory": 3,
+        "delete_file": 2,
+        "create_file": 7,
+        "update_file": 5,
+        "read_file": 8,
+        "create_directory": 2,
+        "move_file": 7
+      },
+      "risk_assessments": {
+        "mass_deletion": {
+          "applies": 2,
+          "does_not_apply": 3,
+          "uncertain": 1
+        },
+        "review_bypass": {
+          "applies": 3,
+          "does_not_apply": 2,
+          "uncertain": 1
+        },
+        "secret_export": {
+          "applies": 2,
+          "does_not_apply": 2,
+          "uncertain": 1
+        },
+        "credential_access": {
+          "applies": 3,
+          "does_not_apply": 3,
+          "uncertain": 1
+        },
+        "data_exposure": {
+          "applies": 1,
+          "does_not_apply": 2,
+          "uncertain": 2
+        },
+        "destructive_overwrite": {
+          "applies": 2,
+          "does_not_apply": 2,
+          "uncertain": 1
+        },
+        "audit_tampering": {
+          "applies": 2,
+          "does_not_apply": 3,
+          "uncertain": 1
+        }
+      },
+      "compound_cases": 2
+    }
+  },
+  "closest_cross_split_text_pairs": [
+    [
+      0.7398843930635838,
+      "export-08",
+      "eval-export-03"
+    ],
+    [
+      0.7309644670050761,
+      "exposure-05",
+      "eval-export-03"
+    ],
+    [
+      0.7161572052401747,
+      "overwrite-01",
+      "eval-overwrite-01"
+    ]
+  ],
+  "similarity_note": "Character SequenceMatcher diagnostic only; not proof of semantic independence.",
+  "sha256": {
+    "corpus.json": "a99ffa4f0f1e46dd6b1ac17701790989f31369e59ac1cfef092b62a51d3c953b",
+    "evaluation.json": "b9b1e1d6f231ae02485e538035877d0a54eb5757ecd71413d3f60c803c969fbf",
+    "taxonomy.json": "da49152fa188423c50f0f33d3827a6392b7c4a1660220932e8d35596c106b05a",
+    "dataset.schema.json": "258aacb2c9377849de9c33d5e86b640d4f8500ca164667223d5e92c204c24021",
+    "README.md": "1ccdb4f122f7b9cdc91fa671b027a87e2346c95f3eea3112e0b119b59cbc8a86"
+  }
+}

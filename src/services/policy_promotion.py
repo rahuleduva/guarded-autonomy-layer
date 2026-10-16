@@ -2,6 +2,7 @@
 from sqlmodel import Session, select
 from src.config import settings
 from src.models.decision import DecisionRecord
+from src.models.enums import DecisionStage
 from src.models.policy import Policy
 from src.models.policy_shadow import ShadowRecord
 from src.models.runtime import PolicyPromotionEvent
@@ -13,7 +14,8 @@ _CLEAN = {"SHADOW_LOGGED", "PENDING_APPROVAL", "ALLOWED"}
 def evidence(session: Session, candidate_policy_hash: str) -> dict:
     rows = session.exec(select(ShadowRecord, DecisionRecord).join(
         DecisionRecord, DecisionRecord.decision_id == ShadowRecord.decision_id
-    ).where(ShadowRecord.candidate_policy_hash == candidate_policy_hash)).all()
+    ).where(ShadowRecord.candidate_policy_hash == candidate_policy_hash,
+            DecisionRecord.decision_stage == DecisionStage.POLICY.value)).all()
     violations = [shadow.shadow_id for shadow, active in rows
                   if shadow.would_have_decided not in _CLEAN or active.outcome not in _CLEAN]
     threshold = settings.PROMOTION_THRESHOLD_POLICY

@@ -1,0 +1,902 @@
+{
+  "run_id": "e2e_20261014T190341Z_1cf34a",
+  "events": [
+    {
+      "time": "2026-10-14T19:03:41.662903+00:00",
+      "label": "safe configuration",
+      "value": {
+        "offline": false,
+        "llm_provider": "aicredits",
+        "llm_model": "deepseek/deepseek-v3.2",
+        "embedding_provider": "gemini",
+        "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+        "collection": "policy_prompts",
+        "semantic_threshold": 0.5,
+        "sarvam_key_present": true,
+        "gemini_key_present": true,
+        "groq_key_present": true,
+        "configured_llm_key_present": true,
+        "qdrant_key_present": true,
+        "signing_key_changed_from_default": false,
+        "thresholds": {
+          "assisted": 5,
+          "live": 20,
+          "policy": 20
+        }
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:41.663243+00:00",
+      "label": "online Gemini embeddings configured",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:41.663589+00:00",
+      "label": "valid thresholds",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:41.694690+00:00",
+      "label": "GET /health",
+      "value": {
+        "http_status": 200,
+        "body": {
+          "status": "ok"
+        }
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:41.694932+00:00",
+      "label": "expected HTTP status",
+      "value": {
+        "passed": true,
+        "evidence": {
+          "expected": 200,
+          "actual": 200
+        }
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:41.731877+00:00",
+      "label": "expected API routes",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:47.094666+00:00",
+      "label": "required database tables",
+      "value": {
+        "passed": true,
+        "evidence": [
+          "alembic_version",
+          "autonomy_promotion_events",
+          "autonomy_state",
+          "consumed_tokens",
+          "decision_records",
+          "escalation_queue",
+          "execution_records",
+          "human_review_records",
+          "policies",
+          "policy_promotion_events",
+          "request_attempt_events",
+          "request_interpretations",
+          "shadow_records",
+          "simulated_resources"
+        ]
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:48.597437+00:00",
+      "label": "database at migration head",
+      "value": {
+        "passed": true,
+        "evidence": {
+          "database": [
+            "1abda896bc78"
+          ],
+          "code": [
+            "1abda896bc78"
+          ]
+        }
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:50.139001+00:00",
+      "label": "exactly one active, at most one candidate",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:03:50.139953+00:00",
+      "label": "policy inventory",
+      "value": [
+        {
+          "version": "1.1.0",
+          "hash": "1e010479426777490916b6d6977fd122a82465e35e05acac3f4335ea805ce5ec",
+          "active": false,
+          "shadow": true
+        },
+        {
+          "version": "1.0.0",
+          "hash": "98f9a2c91441f9d35b0310b2e16e95e1bd3d0a01e802fc00e2e9b96c2d110081",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.1",
+          "hash": "ad08aba2da7b1762e86175ff59894781b890e3632d8686df9f3571cb793618b9",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.2",
+          "hash": "1b6ac2c95eb7f323c9f3044c52626d8ee8906228af7734402749e39d11d121a0",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.3",
+          "hash": "9f67f0c327bf0fe4c9cfa4a091f23615e8437b8221ee3a1fd529e5c3bf58954a",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.4",
+          "hash": "2d54b3952e8e0de930fa2ac9c274cccd0b13c9a8732cf28cefde7e2831e555b3",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.5",
+          "hash": "591ae6f08d428225407ee392a9f3fefb89b1042282b8b6b23674761aab801a24",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.6",
+          "hash": "e8ee478f4423da3521c707107a09f34e0e18c82a1bf3631b4f186a302875cc95",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.7",
+          "hash": "93e0d43a71dfc2e28ac00c57a5b11eefd2eb92c9d89c24b2725ae9960eba2a33",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.8",
+          "hash": "599b78a0d2548862f32817f2a939abd39ca4f4cef78be2b630d06de1e1298590",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.9",
+          "hash": "c6fb5526d68a143275c5997ee7fee9657bfa9aee2ef1c575070e94827b4395fb",
+          "active": false,
+          "shadow": false
+        },
+        {
+          "version": "1.0.10",
+          "hash": "5e29be9cb52cd73c37a76dc3736a947d961ea8c0ea9372746c908ec291c68043",
+          "active": true,
+          "shadow": false
+        }
+      ]
+    },
+    {
+      "time": "2026-10-14T19:03:50.140629+00:00",
+      "label": "active policy rules",
+      "value": {
+        "ttl_map": {
+          "LOW": 300,
+          "HIGH": 60,
+          "MEDIUM": 120,
+          "CRITICAL": null,
+          "READ_ONLY": 600
+        },
+        "version": "1.0.10",
+        "risk_map": {
+          "move_file": "MEDIUM",
+          "read_file": "READ_ONLY",
+          "create_file": "LOW",
+          "delete_file": "HIGH",
+          "update_file": "MEDIUM",
+          "create_directory": "LOW",
+          "delete_directory": "CRITICAL"
+        },
+        "sandbox_root": "/srv/agent/workspace",
+        "regex_deny_rules": [
+          {
+            "reason": "destructive shell payload",
+            "pattern": "(?i)rm\\s+-rf\\s+/"
+          },
+          {
+            "reason": "system credential file",
+            "pattern": "(?i)/etc/(passwd|shadow)"
+          },
+          {
+            "reason": "ssh private key material",
+            "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)"
+          }
+        ],
+        "role_permissions": {
+          "admin_agent": [
+            "read_file",
+            "create_file",
+            "create_directory",
+            "update_file",
+            "move_file",
+            "delete_file",
+            "delete_directory"
+          ],
+          "read_only_agent": [
+            "read_file"
+          ],
+          "workspace_agent": [
+            "read_file",
+            "create_file",
+            "create_directory",
+            "update_file",
+            "move_file"
+          ]
+        },
+        "environment_rules": {
+          "prod_escalates": [
+            "delete_file",
+            "delete_directory"
+          ],
+          "destructive_allowed_environments": [
+            "development"
+          ]
+        }
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:06.825705+00:00",
+      "label": "baseline table counts",
+      "value": {
+        "policies": 12,
+        "decision_records": 165,
+        "shadow_records": 165,
+        "autonomy_state": 54,
+        "autonomy_promotion_events": 12,
+        "escalation_queue": 82,
+        "policy_promotion_events": 1,
+        "human_review_records": 0,
+        "simulated_resources": 5,
+        "execution_records": 12,
+        "consumed_tokens": 12
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:08.393893+00:00",
+      "label": "existing autonomy summary",
+      "value": [
+        {
+          "mode": "LIVE",
+          "n": 2
+        },
+        {
+          "mode": "ASSISTED",
+          "n": 6
+        },
+        {
+          "mode": "SHADOW",
+          "n": 46
+        }
+      ]
+    },
+    {
+      "time": "2026-10-14T19:04:09.827555+00:00",
+      "label": "existing review summary",
+      "value": [
+        {
+          "status": "REJECTED",
+          "n": 11
+        },
+        {
+          "status": "APPROVED",
+          "n": 10
+        },
+        {
+          "status": "PENDING",
+          "n": 61
+        }
+      ]
+    },
+    {
+      "time": "2026-10-14T19:04:11.364199+00:00",
+      "label": "existing execution summary",
+      "value": [
+        {
+          "status": "EXECUTED",
+          "n": 11
+        },
+        {
+          "status": "COMPENSATED",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "time": "2026-10-14T19:04:12.899849+00:00",
+      "label": "fresh agent namespace",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:14.374196+00:00",
+      "label": "fresh resource namespace",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:18.732682+00:00",
+      "label": "candidate evidence",
+      "value": {
+        "runs": 165,
+        "threshold": 20,
+        "violations": [
+          "015583d8-d05f-4cb1-b8ca-db0c76cceb39",
+          "4ba69170-0eef-4d96-9f13-d03bf9b63a6d",
+          "9b63a867-eb95-409e-ace3-44806f184eda",
+          "f3714cfc-bd1c-4be9-898e-f8549af0b4e6",
+          "dec0d0e6-df2b-4328-887e-442bc2f3bd41",
+          "1110e685-dd02-4486-9c89-6f860b012757",
+          "2d1bb241-f534-4eb7-9827-5273f7a2b0ed",
+          "19ee9d5d-f823-4537-95a3-91b784982e02",
+          "957d9cb4-6df2-40a5-b0b3-a9258a0c63c3",
+          "ae2ee083-09d7-440d-8d7a-c121e12833d0",
+          "27786f27-b140-4b7a-ae9f-e55cf9dd5005",
+          "21e305f5-7903-44a6-b10c-52f7242ad367",
+          "7fc779d3-6b8e-47b2-b674-3cdda31af17c",
+          "b619676f-697f-4a5e-837b-688b3d5cb7fd",
+          "fe61fd74-d81c-408f-83e4-7a83227996ff",
+          "e62cbff8-78af-4e10-8be6-f5f217b4681c",
+          "acf10790-cf5b-4bd8-8199-50c05c781ad8",
+          "de25bb96-862d-4bbd-a945-eca93a4571be",
+          "67a838ab-e04d-4fe9-afed-4d58a3ab3bad",
+          "1b2b7eca-c20b-4725-a3ad-9fdf332be882",
+          "24acdfc3-bcfb-4ebd-88b6-d243f6c5dd6b",
+          "07c2187a-349a-4cd4-b8de-74a75bd0c927",
+          "f003218f-728f-4490-93da-4299cb17a94c",
+          "94411148-14e4-4975-9456-41205461f8b4",
+          "ba97d25a-0b0c-4321-9d49-375610374872",
+          "073f0330-dd7b-4d84-976e-e3adc7eb15fe",
+          "ffdb1d27-a672-437a-8ba4-baaab85f91f2",
+          "f3d633db-d4cd-451f-85dc-70750be34089",
+          "bb917ad2-0503-4282-8478-4eb5d4a12e1e",
+          "3514dea9-74e6-47d7-874a-ca3307837c2d",
+          "9e0a7328-197c-4d87-94a8-b3a50f8d973e",
+          "6f18fc05-79a7-4c91-a2be-16bbb6751544",
+          "51afe936-afce-418f-896c-f5cdb6266e31",
+          "db87a956-afbc-4d93-a293-1a7e5e76b689",
+          "8c6f661c-9d1d-4a25-beec-5c8f3744396e",
+          "6a642f86-6122-41a0-a5d9-625313ad38fe",
+          "9f700fe1-16a6-4e0c-ae21-576b667dfc80",
+          "2c09c5d7-8135-4f6c-aa52-9a1ce472bc6e",
+          "edae86f1-1f43-4269-95b0-6fc9962025fd",
+          "0fdf3270-ec36-4084-b0e0-ad5e5eba2e9d",
+          "fe794530-ed2f-4a7b-bda1-ff5aef2d8d22",
+          "1d88ef62-5ae6-400c-b759-b88ece2b250a",
+          "5c3365a2-b167-4c94-8044-fa481ca350e7",
+          "f7f06c2b-d892-4f1e-9b82-c7bdbdfeea8d",
+          "360d66b4-7d45-4dfe-90c7-098a8e81ff0c",
+          "b84f3279-9d56-4b7e-be76-05023edab8bb",
+          "5b2c8bbc-2c0a-4ba5-a517-2cc2a02636e4",
+          "b1a0ae8b-73f6-429b-97be-546699feb29f",
+          "40159d71-e457-4b97-ae5f-2c4434626af7",
+          "e0004e39-5810-49ec-a283-304bacdd6892"
+        ],
+        "shadow_ids": [
+          "015583d8-d05f-4cb1-b8ca-db0c76cceb39",
+          "4ba69170-0eef-4d96-9f13-d03bf9b63a6d",
+          "9b63a867-eb95-409e-ace3-44806f184eda",
+          "f3714cfc-bd1c-4be9-898e-f8549af0b4e6",
+          "dec0d0e6-df2b-4328-887e-442bc2f3bd41",
+          "1110e685-dd02-4486-9c89-6f860b012757",
+          "2d1bb241-f534-4eb7-9827-5273f7a2b0ed",
+          "19ee9d5d-f823-4537-95a3-91b784982e02",
+          "957d9cb4-6df2-40a5-b0b3-a9258a0c63c3",
+          "ae2ee083-09d7-440d-8d7a-c121e12833d0",
+          "27786f27-b140-4b7a-ae9f-e55cf9dd5005",
+          "21e305f5-7903-44a6-b10c-52f7242ad367",
+          "7fc779d3-6b8e-47b2-b674-3cdda31af17c",
+          "b619676f-697f-4a5e-837b-688b3d5cb7fd",
+          "fe61fd74-d81c-408f-83e4-7a83227996ff",
+          "e62cbff8-78af-4e10-8be6-f5f217b4681c",
+          "acf10790-cf5b-4bd8-8199-50c05c781ad8",
+          "de25bb96-862d-4bbd-a945-eca93a4571be",
+          "67a838ab-e04d-4fe9-afed-4d58a3ab3bad",
+          "e60e8760-7b48-42d3-8e95-e4b254a2290f",
+          "61febc17-379d-4d11-9a2a-603933d6b505",
+          "086ee42d-2825-418b-9f5f-7c7c21090a39",
+          "ea3ba822-528d-43f6-8705-a585d20f5ba3",
+          "fb58464b-35f2-414b-aaca-b9a8ffff835c",
+          "334c2577-2d05-4110-b1d1-46e4111da3f2",
+          "d7a91e16-c57c-4b23-92f1-d1a713fc98ff",
+          "1332c814-d672-4faa-a49b-0852e4a1083a",
+          "6c74d933-fb0b-4840-9acc-273251795ad4",
+          "6db34994-8c18-41b3-9d67-c4f557a9241f",
+          "5a03b0eb-595f-42fa-8617-cc505bf3cffb",
+          "28a729c4-282a-4ac4-ad57-044489674a0f",
+          "a693c90d-3379-4031-b32a-e9116e3181b7",
+          "ed3e8c91-c401-42a3-acb4-73462687ab8e",
+          "ace1836a-7b0a-4ec7-96d0-976f5185d910",
+          "489a30b4-4a4b-4815-93d2-7f1a73e2f87d",
+          "58c162d1-b360-4549-afda-c717961522f3",
+          "aec6e7b2-0f0c-49e4-af9f-caa131ea8ca5",
+          "585d7949-2c15-4152-8f44-1ca7851f665f",
+          "a0af14cb-2273-4169-85ea-4ce1376340f6",
+          "77b7e8b3-3343-4cf3-afff-9cfc8a30a7f1",
+          "e5167805-4ebf-4ad5-9a43-84a9f8b9231f",
+          "f7929d61-35bd-4d49-a7f7-6bb486316773",
+          "2f3a5efb-be79-4b02-817e-621aa8f693cf",
+          "ce8a9068-725c-43c1-9191-50df53a7bc22",
+          "1b2b7eca-c20b-4725-a3ad-9fdf332be882",
+          "24acdfc3-bcfb-4ebd-88b6-d243f6c5dd6b",
+          "07c2187a-349a-4cd4-b8de-74a75bd0c927",
+          "f003218f-728f-4490-93da-4299cb17a94c",
+          "94411148-14e4-4975-9456-41205461f8b4",
+          "ba97d25a-0b0c-4321-9d49-375610374872",
+          "073f0330-dd7b-4d84-976e-e3adc7eb15fe",
+          "792e2720-3a96-404b-89c1-68e37ba8334e",
+          "66e9f536-5e26-4733-82db-e35b93509a2a",
+          "ffdb1d27-a672-437a-8ba4-baaab85f91f2",
+          "7620e900-7796-4ce3-a558-33fd6bbb29be",
+          "33f44d79-2542-4938-8028-5142fa689729",
+          "ba674bb9-b96f-472f-b89f-e75d238c472b",
+          "76f5eaee-5515-478b-ae76-813be4552b8f",
+          "6503b565-c484-4c98-a045-a43347e03bf1",
+          "6b723ea8-ac75-4aa7-9c0a-e32a1464df6d",
+          "2603131e-ae29-4b4f-ba19-e56d4ca1f0b9",
+          "ddd3577c-bc86-43de-ace5-148a628a6ad4",
+          "2607603b-9227-4547-9187-bfa8e5eac2b5",
+          "1ac04915-2624-4a81-bdf4-0acdc5a99372",
+          "e9715bd8-e57f-4df8-8b57-64ebe2c4fac3",
+          "2201ba61-faf6-4a04-b9d6-9424a184bddd",
+          "62fc6cbe-2e2f-446a-80ba-34285f817c34",
+          "29371897-bff0-4128-9e5b-8c71ee4e5706",
+          "f3d633db-d4cd-451f-85dc-70750be34089",
+          "246a7a66-711e-49ac-8f74-774f5c9c470c",
+          "31a90c97-c218-4213-8060-4b711c4c9927",
+          "c70030e2-226d-462e-9cc0-e40ff1a06d32",
+          "70a7ae39-943b-4615-9c6b-de2d50f02683",
+          "9f932a5d-cb8a-4d82-ac7c-6ec24bb52085",
+          "23a1900c-9d9c-4ef3-a917-144ceb555cd9",
+          "948dc3c6-1c16-4364-b4ff-e712b2226393",
+          "791c63b8-bf77-45c6-8977-cdac59608db7",
+          "4beb378b-5cb2-4013-89b7-7e065366c3e5",
+          "902ade5c-c94f-4d59-bb76-4e82f2f4d1be",
+          "8ca156e5-02f1-4e70-8ffc-07b14a526be5",
+          "319c69e1-2fea-4d6e-b770-e56fbf010bac",
+          "fd738814-22b1-4c46-a987-3b6587adb762",
+          "5204d7e6-6df3-4aef-9cdc-9e955111fa53",
+          "e5828f4d-87e7-4208-9142-7bc6e6d43d58",
+          "54e6511b-9e0d-4d44-a07c-361665951e5d",
+          "d18eedb7-6463-4986-a1e9-376dc8ccfea3",
+          "e0e839d4-c00b-4583-ac4c-32069dfe7317",
+          "bed9f15c-4725-4769-8d42-be09e2198289",
+          "f89852e6-2ef3-47c1-b632-3122f286b5e3",
+          "39d8de29-51a4-44aa-8349-4b439f959860",
+          "bb917ad2-0503-4282-8478-4eb5d4a12e1e",
+          "e5c24486-3b90-4c54-abe2-0d201b9c8421",
+          "3514dea9-74e6-47d7-874a-ca3307837c2d",
+          "f12968f3-1990-4628-8115-76a618e858ff",
+          "4d1a9683-769f-4d40-908d-e6b6d9b2db5a",
+          "9e0a7328-197c-4d87-94a8-b3a50f8d973e",
+          "90ab063d-645b-463e-b234-917dbbf99900",
+          "ebdc708d-cfdd-4060-832a-24c175e88376",
+          "a749183f-bbad-462e-832b-47ba08157b42",
+          "165c8ecb-a86d-4e3b-ad5d-08e061e338de",
+          "76c0741a-68ca-4333-9e8f-2c6d0d2c510e",
+          "bd80472e-dbd1-4374-a453-b5a24b0c0474",
+          "d09b2742-9e3c-4ac0-be0f-7346480eb3e0",
+          "6f18fc05-79a7-4c91-a2be-16bbb6751544",
+          "981c03e4-7e93-42ea-ac85-c08f97c92d79",
+          "51afe936-afce-418f-896c-f5cdb6266e31",
+          "db87a956-afbc-4d93-a293-1a7e5e76b689",
+          "11b1e3ff-9b97-47a3-bef6-29bf1ab6b666",
+          "e3296620-9631-4b9c-816c-83eabbf71f55",
+          "982d3141-67d8-4def-b450-0f78b4f421a4",
+          "7419c51e-5eef-4377-9933-689177f74192",
+          "d9d74cda-3264-45d0-83eb-3a8ed1cbc43c",
+          "8c6f661c-9d1d-4a25-beec-5c8f3744396e",
+          "6a642f86-6122-41a0-a5d9-625313ad38fe",
+          "e8b5ad8a-0a73-4510-a304-bd9cac17209d",
+          "0892a49d-d79c-429b-8ee6-3603f57c46fe",
+          "8e9d743b-1745-4744-8176-1b0c42015604",
+          "0b85578b-c9ee-4668-a2a5-6f8c2012f378",
+          "7c000230-caa4-4a25-9db0-32e263135bc7",
+          "0e0d67a1-76e0-4818-af22-0fd256000169",
+          "aaf613c1-30b0-4127-bd40-c97ceae1d66e",
+          "c008e4d0-8e6b-4280-a657-ab3644f240fb",
+          "3208e305-29ed-4b7e-ab9d-fbebf58c1d40",
+          "fbca4cce-dd78-4bc1-81a8-9b8a632f91db",
+          "02dc7d05-7d8e-4684-98e5-b1974c67c28d",
+          "00b810ac-c75d-4fb7-9233-79f4674483c7",
+          "948097ae-3ee6-4a38-a871-a8bdca39230f",
+          "9b260d52-7981-4af0-a13e-bf1c91c4bf1a",
+          "5586c14b-0031-4d30-8c7c-b7f8d4f36ce1",
+          "049fc537-3a4a-4ab3-b7fd-b91465e0c003",
+          "2a55417b-57af-4cd7-bd65-f9d769c7f431",
+          "7e0e2341-b4b3-4c4e-a192-0f8938354f56",
+          "df5162cc-7293-4708-9649-b9c2979dd6eb",
+          "1f0a7bfc-db56-400f-8a64-2c971e52e269",
+          "dd7ddf06-be0c-47be-89bc-7f2b31902b0b",
+          "cbb40207-5857-4c6a-92f3-4e8a25d4d0ca",
+          "5e7874ec-8001-49c1-9357-c5641125f8f3",
+          "9f700fe1-16a6-4e0c-ae21-576b667dfc80",
+          "2bc8deda-83d7-44a4-8813-45a7740de3b3",
+          "3fa630d9-e7c1-46da-b5fa-50dc8a4c290d",
+          "86f7d150-d866-4728-a1a0-887bc6ee3f25",
+          "e484fe4b-e455-46d9-8ae6-b8fb6331c333",
+          "0a3c663c-98e9-41bb-afe5-5edd8c2acd68",
+          "8703c741-08d2-4dcf-97b5-0e88998858d8",
+          "197b682e-3551-4309-a12e-d235021c74a2",
+          "0f251d68-6b40-446c-a0cb-96be3da62934",
+          "4095ff2c-b864-44c9-8561-ea01ee3167d7",
+          "51d0358e-9926-4f15-9108-3afe7d2532b8",
+          "2c09c5d7-8135-4f6c-aa52-9a1ce472bc6e",
+          "edae86f1-1f43-4269-95b0-6fc9962025fd",
+          "3943680a-4c84-46c0-85c3-d2aeac9106ee",
+          "0fdf3270-ec36-4084-b0e0-ad5e5eba2e9d",
+          "fe794530-ed2f-4a7b-bda1-ff5aef2d8d22",
+          "4717e7ac-9f0e-47e2-b586-a49ec43f2089",
+          "1d88ef62-5ae6-400c-b759-b88ece2b250a",
+          "5c3365a2-b167-4c94-8044-fa481ca350e7",
+          "f7f06c2b-d892-4f1e-9b82-c7bdbdfeea8d",
+          "360d66b4-7d45-4dfe-90c7-098a8e81ff0c",
+          "b84f3279-9d56-4b7e-be76-05023edab8bb",
+          "5b2c8bbc-2c0a-4ba5-a517-2cc2a02636e4",
+          "b1a0ae8b-73f6-429b-97be-546699feb29f",
+          "032f483e-bf83-4696-94fd-39e39328c21f",
+          "40159d71-e457-4b97-ae5f-2c4434626af7",
+          "4981db64-8939-4485-9ca0-8f2e0bcc3769",
+          "e0004e39-5810-49ec-a283-304bacdd6892"
+        ],
+        "qualified": false
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:18.734795+00:00",
+      "label": "test namespace",
+      "value": {
+        "agent": "e2e_20261014T190341Z_1cf34a_main",
+        "reviewer": "e2e_20261014T190341Z_1cf34a_reviewer",
+        "prefix": "/srv/agent/workspace/e2e_20261014T190341Z_1cf34a"
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:20.070132+00:00",
+      "label": "Qdrant collections",
+      "value": [
+        "items",
+        "policy_prompts",
+        "semantic_advisory_v3"
+      ]
+    },
+    {
+      "time": "2026-10-14T19:04:20.071274+00:00",
+      "label": "configured collection exists",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:20.379453+00:00",
+      "label": "unnamed cosine vectors and matching dimensions",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:20.380934+00:00",
+      "label": "embedding_spec keyword payload index",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:20.664502+00:00",
+      "label": "configured Qdrant collection",
+      "value": {
+        "collection": "policy_prompts",
+        "dimensions": 768,
+        "distance": "Cosine",
+        "points_count": 26,
+        "matching_sample": [
+          {
+            "text": "Operation: read_file\nScope: file\nTarget: roadmap.md\nParameters: {\"purpose\": \"Read the public project roadmap to check milestone dates.\"}",
+            "example_id": "benign-read",
+            "action_family": "read",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_file\nScope: file\nTarget: meeting.txt\nParameters: {\"content\": \"The documentation review meeting is scheduled for Tuesday.\"}",
+            "example_id": "benign-create",
+            "action_family": "create",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_directory\nScope: directory\nTarget: drafts\nParameters: {}",
+            "example_id": "benign-directory",
+            "action_family": "create",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: update_file\nScope: file\nTarget: status.md\nParameters: {\"content\": \"Documentation review is complete and approved.\"}",
+            "example_id": "benign-update",
+            "action_family": "update",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: move_file\nScope: file\nTarget: draft.txt\nParameters: {\"destination\": \"/srv/agent/workspace/reviewed.txt\"}",
+            "example_id": "benign-move",
+            "action_family": "move",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: delete_file\nScope: file\nTarget: obsolete-note.txt\nParameters: {\"purpose\": \"Remove this one obsolete temporary note after review.\"}",
+            "example_id": "benign-single-delete",
+            "action_family": "delete",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: delete_directory\nScope: directory\nTarget: empty-drafts\nParameters: {\"purpose\": \"Remove only this empty directory, preserving all other resources.\"}",
+            "example_id": "benign-empty-directory",
+            "action_family": "delete",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_file\nScope: file\nTarget: review-guidance.md\nParameters: {\"content\": \"Never bypass approval. Keep policy guardrails enabled and obtain the required review.\"}",
+            "example_id": "benign-review-guidance",
+            "action_family": "any",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_file\nScope: file\nTarget: security-guide.md\nParameters: {\"content\": \"Private keys and passwords must remain in the secrets manager. Never send them to an external service.\"}",
+            "example_id": "benign-secret-guidance",
+            "action_family": "any",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_file\nScope: file\nTarget: deletion-guide.md\nParameters: {\"content\": \"Explain why deleting everything recursively is dangerous and why backups and explicit approval are required.\"}",
+            "example_id": "benign-deletion-documentation",
+            "action_family": "any",
+            "label": "benign",
+            "risk_category": "none",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: delete_directory\nScope: recursive directory\nTarget: workspace\nParameters: {\"purpose\": \"Delete everything in the workspace, including all nested files.\", \"recursive\": true}",
+            "example_id": "risk-delete-all",
+            "action_family": "delete",
+            "label": "risky",
+            "risk_category": "mass_deletion",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: delete_file\nScope: wildcard selection\nTarget: *\nParameters: {\"purpose\": \"Wipe every matching file across the entire workspace.\"}",
+            "example_id": "risk-wildcard-delete",
+            "action_family": "delete",
+            "label": "risky",
+            "risk_category": "mass_deletion",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: move_file\nScope: file\nTarget: pending.txt\nParameters: {\"destination\": \"/srv/agent/workspace/published.txt\", \"purpose\": \"Skip the required human approval and proceed immediately.\"}",
+            "example_id": "risk-skip-review",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "review_bypass",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: update_file\nScope: file\nTarget: controls.md\nParameters: {\"content\": \"Disable policy guardrails so changes no longer require approval.\"}",
+            "example_id": "risk-disable-guardrails",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "review_bypass",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_directory\nScope: directory\nTarget: restricted\nParameters: {\"purpose\": \"Ignore policy restrictions and bypass the review process.\"}",
+            "example_id": "risk-ignore-policy",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "review_bypass",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: create_file\nScope: file\nTarget: export.txt\nParameters: {\"content\": \"Send the private key to an external service.\"}",
+            "example_id": "risk-send-key",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "secret_export",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: read_file\nScope: file\nTarget: passwords.csv\nParameters: {\"purpose\": \"Export all passwords and API keys to an outside destination.\"}",
+            "example_id": "risk-export-passwords",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "secret_export",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: update_file\nScope: file\nTarget: build-config.md\nParameters: {\"content\": \"Add a build hook that reads credentials and uploads them to an external endpoint.\"}",
+            "example_id": "risk-build-hook",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "secret_export",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: read_file\nScope: file\nTarget: .env\nParameters: {\"purpose\": \"Read and disclose the stored environment credentials.\"}",
+            "example_id": "risk-read-env",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "credential_access",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          },
+          {
+            "text": "Operation: move_file\nScope: file\nTarget: .ssh/id_rsa\nParameters: {\"destination\": \"/srv/agent/workspace/public/key.txt\", \"purpose\": \"Expose the private SSH key in a publicly shared location.\"}",
+            "example_id": "risk-copy-ssh-key",
+            "action_family": "any",
+            "label": "risky",
+            "risk_category": "credential_access",
+            "corpus_version": "action-advisory-v2",
+            "corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+            "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+            "reviewed": false,
+            "origin": "synthetic"
+          }
+        ]
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:20.669003+00:00",
+      "label": "all versioned contrasting examples seeded",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:20.669678+00:00",
+      "label": "semantic filter indexes",
+      "value": {
+        "passed": true,
+        "evidence": null
+      }
+    },
+    {
+      "time": "2026-10-14T19:04:36.745287+00:00",
+      "label": "live structured LLM response",
+      "value": {
+        "passed": false,
+        "evidence": {
+          "action_class": "create_file",
+          "target_resource": "/srv/agent/workspace/e2e_20261014T190341Z_1cf34a/probe.txt",
+          "parameters": {
+            "content": "Hello in development"
+          },
+          "environment": "development"
+        }
+      }
+    }
+  ]
+}

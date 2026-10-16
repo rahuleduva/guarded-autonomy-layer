@@ -8,6 +8,37 @@ from src.models.request import NaturalLanguageRequest
 from src.services import llm_parser
 
 
+def test_exhausted_structured_output_errors_become_recordable_parser_rejections(monkeypatch):
+    from src.services import llm_routing, monitoring
+    from src.services.llm_errors import StructuredOutputError
+
+    monkeypatch.setattr(settings, 'OFFLINE_MODE', False)
+    monkeypatch.setattr(settings, 'SEMANTIC_PIPELINE_MODE', 'baseline')
+    calls = []
+    raw = {'action_class': 'read_file'}
+    def invoke(messages):
+        calls.append(list(messages))
+        raise StructuredOutputError('Model omitted target_resource', raw_output=raw)
+    profile = SimpleNamespace(name='test', provider='test', model='fake')
+    parser = SimpleNamespace(invoke=invoke, last_profile=profile, profiles=[profile], failures=[],
+        purpose=SimpleNamespace(max_output_attempts=3, max_provider_retries_per_attempt=1,
+                                stage_timeout_seconds=120), can_retry=lambda _: False)
+    monkeypatch.setattr(llm_routing, 'RoutedStructuredParser', lambda *args: parser)
+    attempt, token = monitoring.begin()
+    try:
+        with pytest.raises(llm_parser.ParserRejectionError) as caught:
+            llm_parser.parse(NaturalLanguageRequest(agent_id='a', actor_role='workspace_agent',
+                raw_prompt='Read /workspace/notes.txt'))
+    finally:
+        monitoring.end(token)
+    assert len(calls) == 3
+    assert caught.value.parser_attempts == 3
+    assert caught.value.parser_output_attempts == 3
+    assert caught.value.parser_feedback == attempt.events[-1]['parser_trace']['correction_message']
+    assert caught.value.validation_errors
+    assert all(event['parser_trace']['response'] == raw for event in attempt.events)
+
+
 def action(action_class="create_file", target_resource="/srv/agent/workspace/note.txt",
            parameters=None, environment="production"):
     return llm_parser.ParsedAction(
@@ -22,6 +53,32 @@ def test_explicit_content_and_composed_path_are_grounded():
         "Create note.txt in /srv/agent/workspace with content 'Hello team.' "
         "Use the development environment.",
     )
+
+
+@pytest.mark.parametrize("ending", ["", ".", ". Then stop.", ", please.", "; then stop."])
+def test_delete_path_with_sentence_punctuation_is_grounded(ending):
+    target = "/srv/agent/workspace/tmp/cache-note.txt"
+    llm_parser._validate_grounded_action(
+        action(action_class="delete_file", target_resource=target),
+        "Delete the file " + target + ending,
+    )
+
+
+@pytest.mark.parametrize("mentioned", [
+    "/srv/agent/workspace/tmp/cache-note.txt.bak",
+    "/srv/agent/workspace/tmp/cache-note.txt/child",
+    "/srv/agent/workspace/tmp/cache-note.txt-backup",
+    "/srv/agent/workspace/tmp/cache-note.txt_backup",
+    "/srv/agent/workspace/tmp/cache-note.txt~",
+    "/other/srv/agent/workspace/tmp/cache-note.txt",
+])
+def test_delete_path_cannot_match_part_of_a_longer_path(mentioned):
+    with pytest.raises(llm_parser.UnverifiedActionError, match="target path"):
+        llm_parser._validate_grounded_action(
+            action(action_class="delete_file",
+                   target_resource="/srv/agent/workspace/tmp/cache-note.txt"),
+            "Delete the file " + mentioned + ".",
+        )
 
 
 @pytest.mark.parametrize("parameters,prompt", [
@@ -68,9 +125,10 @@ def test_unsupported_or_invented_arguments_are_rejected(proposed, prompt):
 
 
 def test_online_parser_rejects_unsourced_content_before_evaluation(monkeypatch):
+    from src.services import llm_routing
     monkeypatch.setattr(settings, "OFFLINE_MODE", False)
-    monkeypatch.setattr(settings, "LLM_PROVIDER", "gemini")
-    monkeypatch.setattr(llm_parser, "structured_parser", lambda _: SimpleNamespace(
+    monkeypatch.setattr(settings, "SEMANTIC_PIPELINE_MODE", "baseline")
+    monkeypatch.setattr(llm_routing, "make_parser", lambda *args: SimpleNamespace(
         invoke=lambda _: action(parameters={"content": "Fabricated summary."}).model_dump(),
     ))
     request = NaturalLanguageRequest(

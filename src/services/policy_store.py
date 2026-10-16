@@ -32,25 +32,3 @@ def activate(session: Session, candidate: Policy, reviewer_id: str) -> None:
     candidate.reviewer_id = reviewer_id
     session.add(candidate)
     session.flush()
-
-
-def reviewer_bump(session: Session, reviewer_id: str) -> Policy:
-    import copy
-    current = active(session)
-    validate_stored(current)
-    rules = copy.deepcopy(current.rules_json)
-    try:
-        major, minor, patch = (int(part) for part in current.version.split("."))
-    except (ValueError, TypeError):
-        raise ValueError("reviewer policy bumps require major.minor.patch versions") from None
-    versions = set(session.exec(select(Policy.version)).all())
-    version = f"{major}.{minor}.{patch + 1}"
-    while version in versions:
-        patch += 1
-        version = f"{major}.{minor}.{patch + 1}"
-    rules["version"] = version
-    row = Policy(version=version, policy_hash=canonical_policy_hash(rules), rules_json=rules)
-    session.add(row)
-    session.flush()
-    activate(session, row, reviewer_id)
-    return row

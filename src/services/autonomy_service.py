@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from src.config import settings
 from src.models.autonomy import AutonomyPromotionEvent, AutonomyState
 from src.models.decision import DecisionRecord
-from src.models.enums import AutonomyLevel, DecisionOutcome
+from src.models.enums import AutonomyLevel, DecisionOutcome, DecisionStage
 
 _CLEAN_OUTCOMES = {
     DecisionOutcome.SHADOW_LOGGED.value,
@@ -41,8 +41,13 @@ def _clean_runs(session: Session, agent_id: str, action_class: str) -> list[Deci
         select(DecisionRecord).where(
             DecisionRecord.agent_id == agent_id,
             DecisionRecord.action_class == action_class,
+            DecisionRecord.decision_stage == DecisionStage.POLICY.value,
         ).order_by(DecisionRecord.created_at.desc(), DecisionRecord.decision_id.desc())
     ).all()
+    # A post-review authorization is the continuation of the original held
+    # proposal, not a separate clean sample for autonomy promotion.
+    records = [row for row in records
+               if not (row.evidence_json or {}).get("human_review_finalization")]
     clean = []
     # If timestamps tie, a violation takes precedence over clean decisions in
     # that group. UUID order must not manufacture evidence of a later clean run.
@@ -72,12 +77,15 @@ def record_outcome(
     clean proposals, not proof of executed actions or human approval.
     """
     state = get(session, agent_id, action_class)
-    latest = session.exec(
+    decisions = session.exec(
         select(DecisionRecord).where(
             DecisionRecord.agent_id == agent_id,
             DecisionRecord.action_class == action_class,
+            DecisionRecord.decision_stage == DecisionStage.POLICY.value,
         ).order_by(DecisionRecord.created_at.desc(), DecisionRecord.decision_id.desc())
-    ).first()
+    ).all()
+    latest = next((row for row in decisions
+                   if not (row.evidence_json or {}).get("human_review_finalization")), None)
     if latest is None:
         raise ValueError("cannot record an outcome without a ledger decision")
     if violated is not None:
@@ -143,9 +151,12 @@ def promote_to_live(
     if not reviewer_id.strip() or not isinstance(approved, bool):
         raise ValueError("reviewer_id and a boolean approved decision are required")
     threshold = _threshold(settings.PROMOTION_THRESHOLD_LIVE)
-    state = get(session, agent_id, action_class)
+    state = session.exec(select(AutonomyState).where(
+        AutonomyState.agent_id == agent_id, AutonomyState.action_class == action_class
+    ).with_for_update()).one_or_none()
+    if state is None:
+        raise ValueError('LIVE promotion requires an existing ASSISTED state')
     runs = _clean_runs(session, agent_id, action_class)
-    state.streak = len(runs)
     promoted = approved and state.mode == AutonomyLevel.ASSISTED.value and len(runs) >= threshold
     if not approved:
         reason = "reviewer declined LIVE promotion"
@@ -158,10 +169,11 @@ def promote_to_live(
     _log_promotion(session, state, AutonomyLevel.LIVE, reviewer_id, approved,
                    promoted, reason, runs, threshold)
     if promoted:
+        state.streak = len(runs)
         state.mode = AutonomyLevel.LIVE.value
         state.reviewer_id = reviewer_id
         state.promoted_at = datetime.now(timezone.utc)
-    state.updated_at = datetime.now(timezone.utc)
-    session.add(state)
+        state.updated_at = datetime.now(timezone.utc)
+        session.add(state)
     session.flush()
     return promoted

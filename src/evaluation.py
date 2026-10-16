@@ -11,7 +11,7 @@ from src.models.autonomy import AutonomyState
 from src.models.decision import DecisionRecord
 from src.models.policy import Policy
 from src.models.runtime import SimulatedResource
-from src.models.request import ActionRequest
+from src.models.request import ActionRequest, ApprovalDecision
 from src.services import autonomy_service, escalation_service, executor, policy_promotion, replay_engine, token_issuer
 from src.services.orchestrator import evaluate_action
 from src.services.policy_loader import seed_policy_artifacts
@@ -82,14 +82,19 @@ def run_scenario(number: int) -> dict:
                 held = propose(session, "create_file")
                 assert held.decision == "PENDING_APPROVAL"
             assert escalation_service.list_pending(session)
-            before = session.exec(select(Policy).where(Policy.is_active == True)).one().version
-            review = escalation_service.decide(session, held.decision_id, "demo-reviewer", True, "synthetic approval")
-            assert review["new_policy_version"] != before
-            assert review["evaluation"]["decision"] == "ALLOWED"
-            approved = review["evaluation"]
+            package = next(item for item in escalation_service.list_pending(session)
+                           if item.decision_id == held.decision_id)
+            review = escalation_service.decide(session, held.decision_id, ApprovalDecision(
+                decision_id=held.decision_id, reviewer_id="demo-reviewer", approve=True,
+                note="Synthetic approval", package_fingerprint=package.package_fingerprint,
+            ))
+            assert review.authorization_status == "ALLOWED"
+            assert review.evaluation["decision"] == "ALLOWED"
+            approved = review.evaluation
             execution = executor.execute(session, approved["decision_id"], approved["capability_token"])
             assert execution.status == "EXECUTED"
-            details = {"held": held.decision, "new_policy_version": review["new_policy_version"]}
+            details = {"held": held.decision, "authorization": review.authorization_status,
+                       "policy_version_unchanged": True}
         elif number in {4, 5}:
             earn_live(session)
             if number == 5:

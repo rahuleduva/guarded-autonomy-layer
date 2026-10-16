@@ -1,0 +1,111 @@
+{
+  "version": "llm-structured-output-compatibility-v1",
+  "created_at": "2026-10-10T07:30:18.842495+00:00",
+  "checks": [
+    {
+      "provider": "ai_credits",
+      "model": "anthropic/claude-sonnet-5.5",
+      "methods": [
+        {
+          "method": "langchain_default",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 1.735
+        },
+        {
+          "method": "function_calling",
+          "status": "fail",
+          "error_type": "OpenAIInvalidRequestError",
+          "error": "Error code: 400 - {'error': {'message': 'Provider returned error', 'code': 400, 'metadata': {'raw': '{\"message\":\"tool_choice: type \\\\\"tool\\\\\" and \\\\\"any\\\\\" are not supported for this model.\"}', 'provider_name': 'Amazon Bedrock', 'is_byok': False, 'previous_errors': [{'code': 400, 'message': 'Provider returned error', 'provider_name': 'Claude Platform on AWS', 'raw': '{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"tool_choice: type \\\\\"tool\\\\\" and \\\\\"any\\\\\" are not supported fo",
+          "elapsed_seconds": 8.874
+        },
+        {
+          "method": "json_schema",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 1.422
+        },
+        {
+          "method": "json_mode",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 1.435
+        }
+      ]
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.5-flash-lite",
+      "methods": [
+        {
+          "method": "langchain_default",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 0.985
+        },
+        {
+          "method": "function_calling",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 1.013
+        },
+        {
+          "method": "json_schema",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 0.815
+        },
+        {
+          "method": "json_mode",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 1.231
+        }
+      ]
+    },
+    {
+      "provider": "sarvam",
+      "model": "sarvam-105b",
+      "methods": [
+        {
+          "method": "langchain_default",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 0.586
+        }
+      ]
+    },
+    {
+      "provider": "groq",
+      "model": "qwen/qwen3.8-27b",
+      "methods": [
+        {
+          "method": "langchain_default",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 0.228
+        },
+        {
+          "method": "function_calling",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 0.179
+        },
+        {
+          "method": "json_schema",
+          "status": "pass",
+          "marker_match": true,
+          "elapsed_seconds": 0.124
+        },
+        {
+          "method": "json_mode",
+          "status": "fail",
+          "error_type": "BadRequestError",
+          "error": "Error code: 400 - {'error': {'message': \"'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.\", 'type': 'invalid_request_error'}}",
+          "elapsed_seconds": 0.058
+        }
+      ]
+    }
+  ],
+  "note": "PASS means the route returned a valid tiny structured response; it does not measure task accuracy."
+}

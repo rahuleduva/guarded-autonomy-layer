@@ -4,6 +4,8 @@ This document is the new, standalone execution plan requested by the user. It do
 
 Status: **prepared, not executed**. No connectivity, database state, or successful scenario is assumed. A smaller model should execute the numbered steps in order, compare every observation, and stop the dependent chain on a mismatch. Do not run a whole chapter blindly.
 
+> **Human-review update:** approval payloads below bind the exact fetched package fingerprint. Approval preserves policy versions, records a linked authorization decision, and never executes automatically or queues a blocked finalization again. Run the additional [human-review regression checklist](HUMAN_REVIEW_E2E.md) for the new boundary cases. These updated instructions have not yet been executed.
+
 ## How to execute this document
 
 1. Use a separate terminal from the running FastAPI server. All shell blocks below run in the **same Bash shell** so exported variables survive. Do not launch a new shell for each block.
@@ -58,6 +60,25 @@ show_json() {
     else . end)' "$1"
 }
 ```
+
+### A3b. Bind each reviewer payload to its fetched package
+
+Run this definition once. Each new reviewer payload below calls it before submission. Keep the saved package as evidence of what the simulated reviewer accepted.
+
+```bash
+bind_review_package() {
+  local payload="$1"
+  local decision_id
+  decision_id="$(jq -er '.decision_id' "$payload")" || return 1
+  curl --fail --silent --show-error --max-time 30 "$E2E_BASE/api/v1/escalations" -o "$payload.queue.json" || return 1
+  jq -e --arg id "$decision_id" '[.[] | select(.decision_id==$id)] | if length==1 then .[0] else error("expected one pending package") end
+    | select(.package_fingerprint != null and .explanation != null)' "$payload.queue.json" > "$payload.package.json" || return 1
+  jq --slurpfile package "$payload.package.json" '.package_fingerprint=$package[0].package_fingerprint' "$payload" > "$payload.bound.json" || return 1
+  mv "$payload.bound.json" "$payload"
+}
+```
+
+A legacy package without a fingerprint needs explicit POST `/api/v1/escalations/<decision_id>/prepare`, then a fresh GET before review. Do not silently approve an unprepared package.
 
 ### A4. Define a read-only SQL command
 
@@ -124,16 +145,18 @@ python - <<'PY' > "$E2E_OUT/config.json"
 import json
 from sqlalchemy.engine import make_url
 from src.config import settings as s
-from src.services.embeddings import specification
+from src.services.embeddings import specification, selected_profile
+from src.services.llm_routing import resolve_purpose, setting_value
 u = make_url(s.DATABASE_URL)
+parser = resolve_purpose("request_parser")[1][0]
 print(json.dumps({
     "offline_mode": s.OFFLINE_MODE,
     "database_backend": u.get_backend_name(),
-    "llm_provider": s.LLM_PROVIDER,
-    "llm_model": s.GROQ_LLM_MODEL if s.LLM_PROVIDER == "groq" else s.GEMINI_LLM_MODEL,
-    "llm_key_present": bool(s.GROQ_API_KEY if s.LLM_PROVIDER == "groq" else s.GEMINI_API_KEY),
-    "embedding_provider": s.EMBEDDING_PROVIDER,
-    "embedding_model": s.GEMINI_EMBEDDING_MODEL,
+    "llm_provider": parser.provider,
+    "llm_model": parser.model,
+    "llm_key_present": bool(setting_value(parser.api_key_setting)),
+    "embedding_provider": selected_profile().provider,
+    "embedding_model": selected_profile().model,
     "embedding_dimensions": s.GEMINI_EMBEDDING_DIMENSIONS,
     "embedding_key_present": bool(s.GEMINI_API_KEY),
     "semantic_source": "qdrant:" + specification(),
@@ -195,7 +218,7 @@ from src.db.database import engine
 cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
 cfg.set_main_option("script_location", str(PROJECT_ROOT / "alembic"))
 heads = sorted(ScriptDirectory.from_config(cfg).get_heads())
-required = {"policies", "decision_records", "shadow_records", "autonomy_state",
+required = {"policies", "decision_records", "human_review_records", "shadow_records", "autonomy_state",
  "autonomy_promotion_events", "escalation_queue", "policy_promotion_events",
  "simulated_resources", "execution_records", "consumed_tokens"}
 with engine.connect() as conn:
@@ -296,6 +319,7 @@ from uuid import NAMESPACE_URL, uuid5
 from qdrant_client import QdrantClient, models
 from src.config import settings as s
 from src.services.embeddings import specification
+from src.services.llm_routing import resolve_purpose, setting_value
 from src.services.vector_setup import PATTERNS
 u = urlparse(s.QDRANT_URL)
 assert u.scheme == "https" and (u.hostname or "").endswith(".cloud.qdrant.io")
@@ -351,36 +375,26 @@ jq -e --argjson dims "$(jq '.embedding_dimensions' "$E2E_OUT/config.json")" \
 ```bash
 python - <<'PY' > "$E2E_OUT/provider-probe.json"
 import json, os
-from openai import OpenAI
 from src.config import settings as s
-from src.models.request import ActionRequest
-from src.services.llm_parser import ParsedAction
+from src.models.request import NaturalLanguageRequest
+from src.services.llm_parser import parse
 from src.services.semantic_engine import assess
-key = s.GROQ_API_KEY if s.LLM_PROVIDER == "groq" else s.GEMINI_API_KEY
-base = "https://api.groq.com/openai/v1" if s.LLM_PROVIDER == "groq" else "https://generativelanguage.googleapis.com/v1beta/openai/"
-model = s.GROQ_LLM_MODEL if s.LLM_PROVIDER == "groq" else s.GEMINI_LLM_MODEL
 target = os.environ["E2E_PREFIX"] + "/provider-probe.txt"
-with OpenAI(api_key=key, base_url=base, timeout=15, max_retries=2) as client:
-    r = client.chat.completions.create(model=model, temperature=0, max_tokens=1024,
-      response_format={"type":"json_object"}, messages=[
-        {"role":"system", "content":"Return one JSON action matching this schema: " + json.dumps(ParsedAction.model_json_schema())},
-        {"role":"user", "content":f"create file {target} with content Hello in development"}])
-    assert r.choices and r.choices[0].finish_reason == "stop"
-    parsed = ParsedAction.model_validate_json(r.choices[0].message.content)
+prompt = f"Create a file at `{target}` with content: `Hello`. Use development."
+parsed = parse(NaturalLanguageRequest(agent_id=os.environ["E2E_MAIN_AGENT"],
+  actor_role="workspace_agent", raw_prompt=prompt))
 assert parsed.action_class == "create_file" and parsed.target_resource == target
 assert parsed.environment == "development" and parsed.parameters.get("content") == "Hello"
-request = ActionRequest(agent_id=os.environ["E2E_MAIN_AGENT"], actor_role="workspace_agent",
- action_class="create_file", target_resource=target, parameters={"content":"Hello"}, environment="development")
-semantic = assess(request)
-print(json.dumps({"llm_requested_model":model,"llm_returned_model":r.model,
-                  "parsed":parsed.model_dump(), "semantic":semantic.as_evidence()}, indent=2))
+semantic = assess(parsed)
+print(json.dumps({"llm_provider":parsed.parameters["parser_provenance"]["source"],
+                  "parsed":parsed.model_dump(mode="json"), "semantic":semantic.as_evidence()}, indent=2))
 PY
 show_json "$E2E_OUT/provider-probe.json"
 jq -e --arg source "$E2E_SEMANTIC_SOURCE" \
   '.semantic.source == $source and .semantic.fallback_reason == null and .semantic.flag == false' "$E2E_OUT/provider-probe.json"
 ```
 
-Expected: actual structured LLM success and benign semantic assessment from live Gemini+Qdrant. This diagnostic performs no policy evaluation, ledger insertion, or resource execution.
+Expected: actual structured LLM success and benign semantic assessment from the configured chat provider plus live Gemini embeddings/Qdrant. This diagnostic performs no policy evaluation, ledger insertion, or resource execution.
 
 If the benign probe is flagged, record its actual score/cutoff/reference. Run `python -m src.cli calibrate-semantic` separately and inspect all labeled scores. It does not change the threshold. Do not turn semantics off or arbitrarily increase the cutoff. Any justified config change requires a recorded reason, server restart, and fresh run.
 
@@ -680,12 +694,13 @@ dbread 'SELECT version,policy_hash FROM policies WHERE is_active' > "$E2E_OUT/S0
 cat > "$E2E_OUT/S04-review-request.json" <<JSON
 {"decision_id":"${E2E_PENDING_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Approve one synthetic create after inspecting its package"}
 JSON
+bind_review_package "$E2E_OUT/S04-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_PENDING_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S04-review-request.json" \
  -o "$E2E_OUT/S04-review-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
 show_json "$E2E_OUT/S04-review-response.json"
-jq -e --arg original "$E2E_PENDING_ID" '.status=="APPROVED" and .new_policy_version!=null
+jq -e --arg original "$E2E_PENDING_ID" '.status=="APPROVED" and .new_policy_version==null
  and .evaluation.decision=="ALLOWED" and .evaluation.decision_id!=$original
  and (.evaluation.capability_token|type)=="string"' "$E2E_OUT/S04-review-response.json"
 jq '.evaluation' "$E2E_OUT/S04-review-response.json" > "$E2E_OUT/approved-create.json"
@@ -694,7 +709,7 @@ export E2E_APPROVED_ID="$(jq -er '.decision_id' "$E2E_OUT/approved-create.json")
 export E2E_APPROVED_TARGET="$(jq -er '.action_request.target_resource' "$E2E_OUT/approved-create.json")"
 ```
 
-Expected: review status APPROVED; new patch version/hash; **new** request/decision ALLOWED; original decision is not rewritten to ALLOWED. Approval does not execute.
+Expected: review status APPROVED and authorization_status ALLOWED; unchanged policy version/hash; **new** request/decision ALLOWED; original decision is not rewritten to ALLOWED. Approval does not execute.
 
 ### S04.3. Execute promptly using the new decision and token
 
@@ -712,7 +727,7 @@ export E2E_CREATE_EXECUTION="$(jq -er '.execution_id' "$E2E_OUT/S04-execute-resp
 
 Do this within the LOW token's 300-second lifetime. If expired because execution was delayed, record that and obtain a new valid decision through the real workflow. Do not forge/re-sign the token.
 
-### S04.4. Compare original fields, review package, new policy, execution and nonce
+### S04.4. Compare original fields, review package, unchanged policy, execution and nonce
 
 ```bash
 export E2E_CHECK_ID="$E2E_PENDING_ID"
@@ -722,8 +737,8 @@ dbread 'SELECT status,reviewer_id,decided_at,package_json FROM escalation_queue 
 jq -e --arg reviewer "$E2E_REVIEWER" 'length==1 and .[0].status=="APPROVED"
  and .[0].reviewer_id==$reviewer and .[0].decided_at!=null' "$E2E_OUT/S04-reviewed-package.json"
 dbread 'SELECT version,policy_hash FROM policies WHERE is_active' > "$E2E_OUT/S04-policy-after.json"
-test "$(jq -r '.[0].version' "$E2E_OUT/S04-policy-before.json")" != "$(jq -r '.[0].version' "$E2E_OUT/S04-policy-after.json")"
-test "$(jq -r '.[0].policy_hash' "$E2E_OUT/S04-policy-before.json")" != "$(jq -r '.[0].policy_hash' "$E2E_OUT/S04-policy-after.json")"
+test "$(jq -r '.[0].version' "$E2E_OUT/S04-policy-before.json")" = "$(jq -r '.[0].version' "$E2E_OUT/S04-policy-after.json")"
+test "$(jq -r '.[0].policy_hash' "$E2E_OUT/S04-policy-before.json")" = "$(jq -r '.[0].policy_hash' "$E2E_OUT/S04-policy-after.json")"
 export E2E_CHECK_ID="$E2E_APPROVED_ID"
 dbread 'SELECT execution_id,status,before_state,after_state FROM execution_records WHERE decision_id=:id' > "$E2E_OUT/S04-execution-db.json"
 dbread 'SELECT nonce,decision_id FROM consumed_tokens WHERE decision_id=:id' > "$E2E_OUT/S04-nonce-db.json"
@@ -734,7 +749,7 @@ dbread 'SELECT value_json FROM simulated_resources WHERE resource=:target' > "$E
 jq -e 'length==1 and .[0].value_json=={"kind":"file","content":"Hello"}' "$E2E_OUT/S04-resource-db.json"
 ```
 
-End-to-end expected result: held proposal → recorded human approval → versioned policy → fresh ALLOWED decision/token → single committed synthetic file creation. Original historical decision/evidence preserved.
+End-to-end expected result: held proposal → recorded human approval → unchanged policy → linked ALLOWED decision/token → single committed synthetic file creation. Original historical decision/evidence preserved.
 
 ## S05. Human rejects another pending action; duplicate/mismatched reviews fail
 
@@ -748,6 +763,7 @@ dbread 'SELECT decision_id FROM decision_records ORDER BY decision_id' > "$E2E_O
 cat > "$E2E_OUT/S05-review-request.json" <<JSON
 {"decision_id":"${E2E_REJECT_ID}","reviewer_id":"${E2E_REVIEWER}","approve":false,"note":"Reject this synthetic proposal"}
 JSON
+bind_review_package "$E2E_OUT/S05-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_REJECT_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S05-review-request.json" \
  -o "$E2E_OUT/S05-review-response.json" -w '%{http_code}')
@@ -769,7 +785,7 @@ Expected: no new policy/decision/token/execution. Original action decision remai
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_PENDING_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S04-review-request.json" \
  -o "$E2E_OUT/S05-duplicate-response.json" -w '%{http_code}')
-test "$E2E_HTTP" = '400'
+test "$E2E_HTTP" = '409'
 jq -e '.detail | contains("already reviewed")' "$E2E_OUT/S05-duplicate-response.json"
 dbread 'SELECT policy_hash,version,is_active,is_shadow FROM policies ORDER BY policy_hash' > "$E2E_OUT/S05-policies-after-duplicate.json"
 dbread 'SELECT decision_id FROM decision_records ORDER BY decision_id' > "$E2E_OUT/S05-decisions-after-duplicate.json"
@@ -777,7 +793,7 @@ cmp -s "$E2E_OUT/S05-policies-after.json" "$E2E_OUT/S05-policies-after-duplicate
 cmp -s "$E2E_OUT/S05-decisions-after.json" "$E2E_OUT/S05-decisions-after-duplicate.json"
 ```
 
-Expected: HTTP 400; no repeated reevaluation, patch bump, or execution.
+Expected: HTTP 409; no duplicate authorization, review row, policy change, or execution.
 
 ### S05.3. Send mismatched path and body decision IDs
 
@@ -1122,7 +1138,7 @@ dbread 'SELECT resource FROM simulated_resources WHERE resource=:target' > "$E2E
 jq -e 'length==0' "$E2E_OUT/S11-resource.json"
 ```
 
-Only the selected LLM provider is covered. To claim both providers, finish this run first, record it, then restart server/session with the other `LLM_PROVIDER` and repeat B1/B7 and S11 with a fresh namespace. Do not label Groq tested if this run used only Gemini, or vice versa.
+Only the configured request-parser route is covered. To claim multiple providers, finish this run first, record it, then edit `config/llm_routing.yaml`, restart the server/session, and repeat B1/B7 and S11 with a fresh namespace. Embedding calls continue to use the configured embedding provider.
 
 ## S12. Hard-denial matrix: role, unknown action, scope, move, nested content
 
@@ -1259,11 +1275,12 @@ Expected: environment forces review despite role permission and ASSISTED trust. 
 cat > "$E2E_OUT/S13-review-request.json" <<JSON
 {"decision_id":"${E2E_PROD_HOLD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Approve deletion of this synthetic production test target only"}
 JSON
+bind_review_package "$E2E_OUT/S13-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_PROD_HOLD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S13-review-request.json" \
  -o "$E2E_OUT/S13-review-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
-jq -e '.status=="APPROVED" and .new_policy_version!=null and .evaluation.decision=="ALLOWED"' "$E2E_OUT/S13-review-response.json"
+jq -e '.status=="APPROVED" and .new_policy_version==null and .evaluation.decision=="ALLOWED"' "$E2E_OUT/S13-review-response.json"
 jq '.evaluation' "$E2E_OUT/S13-review-response.json" > "$E2E_OUT/S13-approved-delete.json"
 audit_decision "$E2E_OUT/S13-approved-delete.json"
 jq '{decision_id,token:.capability_token}' "$E2E_OUT/S13-approved-delete.json" > "$E2E_OUT/S13-execute-request.json"
@@ -1277,7 +1294,7 @@ dbread 'SELECT resource FROM simulated_resources WHERE resource=:target' > "$E2E
 jq -e 'length==0' "$E2E_OUT/S13-resource-after.json"
 ```
 
-HIGH TTL is 60 seconds. Expected final chain: ESCALATED original → reviewed/attributed version bump → fresh ALLOWED decision → target deleted once. Original decision stays ESCALATED and replayable.
+HIGH TTL is 60 seconds. Expected final chain: ESCALATED original → attributed review with unchanged policy → fresh ALLOWED decision → target deleted once. Original decision stays ESCALATED and replayable.
 
 ### S13.5. The approval was action-specific, not blanket production permission
 
@@ -1295,6 +1312,7 @@ audit_decision "$E2E_OUT/S13-second-delete-response.json"
 E2E_SECOND_DELETE_ID="$(jq -er '.decision_id' "$E2E_OUT/S13-second-delete-response.json")"
 jq --arg id "$E2E_SECOND_DELETE_ID" '.decision_id=$id|.approve=false|.note="Reject follow-up; earlier approval is not blanket production permission"' \
  "$E2E_OUT/S13-review-request.json" > "$E2E_OUT/S13-second-review-request.json"
+bind_review_package "$E2E_OUT/S13-second-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_SECOND_DELETE_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S13-second-review-request.json" \
  -o "$E2E_OUT/S13-second-review-response.json" -w '%{http_code}')
@@ -1338,6 +1356,7 @@ jq -e 'length==1 and .[0].status=="PENDING" and .[0].package_json.semantic_warni
 cat > "$E2E_OUT/S14-review-request.json" <<JSON
 {"decision_id":"${E2E_SEMANTIC_HOLD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":false,"note":"Reject suspicious synthetic approval-bypass content"}
 JSON
+bind_review_package "$E2E_OUT/S14-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_SEMANTIC_HOLD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S14-review-request.json" \
  -o "$E2E_OUT/S14-review-response.json" -w '%{http_code}')
@@ -1376,6 +1395,7 @@ Expected: file base score 1 + recursive 5 = 6; count unknown; review due to blas
 cat > "$E2E_OUT/S15-review-request.json" <<JSON
 {"decision_id":"${E2E_BROAD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":false,"note":"Reject synthetic broad-scope probe"}
 JSON
+bind_review_package "$E2E_OUT/S15-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_BROAD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S15-review-request.json" \
  -o "$E2E_OUT/S15-review-response.json" -w '%{http_code}')
@@ -1408,26 +1428,27 @@ export E2E_CRITICAL_ID="$(jq -er '.decision_id' "$E2E_OUT/S16-response.json")"
 
 Development avoids the production gate so the null-TTL branch is explicit. No resource need exist for policy evaluation.
 
-### S16.2. Human approves; observe reevaluation remains held
+### S16.2. Human approves; authorization is blocked without a new queue item
 
 ```bash
 cat > "$E2E_OUT/S16-review-request.json" <<JSON
 {"decision_id":"${E2E_CRITICAL_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Test that human approval cannot mint a CRITICAL null-TTL token"}
 JSON
+bind_review_package "$E2E_OUT/S16-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_CRITICAL_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S16-review-request.json" \
  -o "$E2E_OUT/S16-review-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
-jq -e '.status=="APPROVED" and .new_policy_version!=null and .evaluation.decision=="ESCALATED"
+jq -e '.status=="APPROVED" and .authorization_status=="BLOCKED" and .new_policy_version==null and .evaluation.decision=="ESCALATED"
  and .evaluation.capability_token==null and .evaluation.risk_level=="CRITICAL"' "$E2E_OUT/S16-review-response.json"
 jq '.evaluation' "$E2E_OUT/S16-review-response.json" > "$E2E_OUT/S16-reevaluation.json"
 audit_decision "$E2E_OUT/S16-reevaluation.json"
 export E2E_CHECK_ID="$(jq -er '.decision_id' "$E2E_OUT/S16-reevaluation.json")"
 dbread 'SELECT status FROM escalation_queue WHERE decision_id=:id' > "$E2E_OUT/S16-new-package.json"
-jq -e 'length==1 and .[0].status=="PENDING"' "$E2E_OUT/S16-new-package.json"
+jq -e 'length==0' "$E2E_OUT/S16-new-package.json"
 ```
 
-End result: original package APPROVED; fresh policy/decision recorded; fresh decision ESCALATED with a new pending package; no token or execution. Do not keep approving the new hold recursively. This is a deliberate remaining test review to report.
+End result: original package APPROVED; policy unchanged; linked authorization decision ESCALATED with authorization_status BLOCKED; no new pending package, token, or execution. The linked decision is replayable and the accepted review is stored in human_review_records.
 
 ## S17. Insufficient agent evidence blocks LIVE; violations reset streak
 
@@ -1506,6 +1527,7 @@ export E2E_ROLLBACK_HOLD_ID="$(jq -er '.decision_id' "$E2E_OUT/S18-create-respon
 cat > "$E2E_OUT/S18-review-request.json" <<JSON
 {"decision_id":"${E2E_ROLLBACK_HOLD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Approve create while update compensation still lacks autonomy"}
 JSON
+bind_review_package "$E2E_OUT/S18-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_ROLLBACK_HOLD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S18-review-request.json" \
  -o "$E2E_OUT/S18-review-response.json" -w '%{http_code}')
@@ -1586,6 +1608,7 @@ export E2E_READ_HOLD_ID="$(jq -er '.decision_id' "$E2E_OUT/S19-read-response.jso
 cat > "$E2E_OUT/S19-review-request.json" <<JSON
 {"decision_id":"${E2E_READ_HOLD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Approve read of the synthetic existing file"}
 JSON
+bind_review_package "$E2E_OUT/S19-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_READ_HOLD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S19-review-request.json" \
  -o "$E2E_OUT/S19-review-response.json" -w '%{http_code}')
@@ -1624,6 +1647,7 @@ audit_decision "$E2E_OUT/S19-missing-response.json"
 E2E_MISSING_READ_ID="$(jq -er '.decision_id' "$E2E_OUT/S19-missing-response.json")"
 jq --arg id "$E2E_MISSING_READ_ID" '.decision_id=$id|.note="Approve missing-resource precondition probe"' \
  "$E2E_OUT/S19-review-request.json" > "$E2E_OUT/S19-missing-review-request.json"
+bind_review_package "$E2E_OUT/S19-missing-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_MISSING_READ_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S19-missing-review-request.json" \
  -o "$E2E_OUT/S19-missing-review-response.json" -w '%{http_code}')
@@ -1687,6 +1711,7 @@ E2E_DIRECTORY_HOLD_ID="$(jq -er '.decision_id' "$E2E_OUT/S20-create-response.jso
 cat > "$E2E_OUT/S20-review-request.json" <<JSON
 {"decision_id":"${E2E_DIRECTORY_HOLD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Approve synthetic directory creation"}
 JSON
+bind_review_package "$E2E_OUT/S20-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_DIRECTORY_HOLD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S20-review-request.json" \
  -o "$E2E_OUT/S20-review-response.json" -w '%{http_code}')
@@ -1759,6 +1784,7 @@ E2E_MOVE_HOLD_ID="$(jq -er '.decision_id' "$E2E_OUT/S21-move-response.json")"
 cat > "$E2E_OUT/S21-review-request.json" <<JSON
 {"decision_id":"${E2E_MOVE_HOLD_ID}","reviewer_id":"${E2E_REVIEWER}","approve":true,"note":"Approve moving the synthetic file"}
 JSON
+bind_review_package "$E2E_OUT/S21-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_MOVE_HOLD_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S21-review-request.json" \
  -o "$E2E_OUT/S21-review-response.json" -w '%{http_code}')
@@ -1827,6 +1853,7 @@ audit_decision "$E2E_OUT/S21-collision-response.json"
 E2E_COLLISION_ID="$(jq -er '.decision_id' "$E2E_OUT/S21-collision-response.json")"
 jq --arg id "$E2E_COLLISION_ID" '.decision_id=$id|.note="Approve occupied-destination precondition probe"' \
  "$E2E_OUT/S21-review-request.json" > "$E2E_OUT/S21-collision-review-request.json"
+bind_review_package "$E2E_OUT/S21-collision-review-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/approve/$E2E_COLLISION_ID" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S21-collision-review-request.json" \
  -o "$E2E_OUT/S21-collision-review-response.json" -w '%{http_code}')
@@ -2335,7 +2362,7 @@ E2E_EXPECTED_PENDING=$((E2E_N + E2E_L - 2 * E2E_A - 1))
 jq -e --argjson n "$E2E_EXPECTED_PENDING" '[.[]|select(.status=="PENDING")]|length==$n' "$E2E_OUT/S26-reviews.json"
 ```
 
-For the full default run: 13 unreviewed main create training packages + 15 unreviewed update training packages + 1 renewed CRITICAL package = **29 pending test reviews**. They are intentional leftovers, not proof that the reviewed actions failed. Do not mass-approve/reject them to tidy the report. With blocked/skipped steps, report actual queue inventory instead of using the full-run formula.
+For the full default run: 13 unreviewed main create training packages + 15 unreviewed update training packages = **28 pending test reviews**; CRITICAL finalization creates no new queue item. They are intentional leftovers, not proof that the reviewed actions failed. Do not mass-approve/reject them to tidy the report. With blocked/skipped steps, report actual queue inventory instead of using the full-run formula.
 
 ### S26.5. Validate final policy integrity and inspect promotion events
 
@@ -2363,7 +2390,7 @@ dbread 'SELECT * FROM policy_promotion_events WHERE reviewer_id=:reviewer ORDER 
 show_json "$E2E_OUT/S26-policy-promotion-events.json"
 ```
 
-Expected: exactly one active pointer, valid hashes/versions, preserved old policies, attributed control events. If S23 completed, candidate2 remains shadow and disqualified. Approval patch bumps and agent promotion events must remain distinct from candidate activation events.
+Expected: exactly one active pointer, valid hashes/versions, preserved old policies, attributed control events. If S23 completed, candidate2 remains shadow and disqualified. Human-review records and agent promotion events remain distinct from candidate activation events. Human review must not change the policy.
 
 ### S26.6. Compare unrelated data with the pre-run snapshots
 
@@ -2390,6 +2417,7 @@ from uuid import NAMESPACE_URL, uuid5
 from qdrant_client import QdrantClient, models
 from src.config import settings as s
 from src.services.embeddings import specification
+from src.services.llm_routing import resolve_purpose, setting_value
 from src.services.vector_setup import PATTERNS
 client = QdrantClient(url=s.QDRANT_URL,api_key=s.QDRANT_API_KEY,timeout=10,check_compatibility=False)
 try:
@@ -2483,7 +2511,7 @@ Acceptance requires observed matches, not merely that commands were issued. A sk
 
 ### D3. Expected full-run end-to-end outcome
 
-If every required prerequisite/scenario passes: real configured providers were used; fresh agents earned trust; active/shadow policies were evaluated separately; reviewer responses were recorded and versioned; only ALLOWED, valid, correctly bound, unexpired, unconsumed tokens executed; resource preconditions still applied; authorized compensation restored unchanged work; newer work survived; all historical decisions replayed consistently. The four resources and 29 default pending test reviews above remain identified. Existing unrelated data/collections remain preserved; policy-pointer fixture/workflow changes are explicitly reported.
+If every required prerequisite/scenario passes: real configured providers were used; fresh agents earned trust; active/shadow policies were evaluated separately; reviewer responses were recorded with exact package/action fingerprints; only ALLOWED, valid, correctly bound, unexpired, unconsumed tokens executed; resource preconditions still applied; authorized compensation restored unchanged work; newer work survived; all historical decisions replayed consistently. The four resources and 28 default pending test reviews above remain identified. Existing unrelated data/collections remain preserved; policy-pointer fixture/workflow changes are explicitly reported.
 
 Do not reset active/shadow pointers, remove test policies, delete vectors, or delete audit records automatically after the run. Such cleanup changes the demonstrated history and is a separate task.
 

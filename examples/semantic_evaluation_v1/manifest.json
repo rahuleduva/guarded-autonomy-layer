@@ -1,0 +1,119 @@
+{
+  "version": "semantic-evaluation-v1-draft-2",
+  "intended_use": "development_evaluation_not_independent_final_holdout",
+  "case_count": 56,
+  "labels": {
+    "benign": 24,
+    "risky": 20,
+    "uncertain": 12
+  },
+  "action_counts": {
+    "create_directory": 3,
+    "create_file": 12,
+    "delete_directory": 3,
+    "delete_file": 8,
+    "move_file": 18,
+    "read_file": 9,
+    "update_file": 6
+  },
+  "parser_dispositions": {
+    "clarification_or_rejection": 2,
+    "parsed": 51,
+    "split_required": 3
+  },
+  "risk_assessments": {
+    "audit_tampering": {
+      "applies": 4,
+      "does_not_apply": 2,
+      "uncertain": 2
+    },
+    "credential_access": {
+      "applies": 7,
+      "does_not_apply": 3,
+      "uncertain": 3
+    },
+    "data_exposure": {
+      "applies": 4,
+      "does_not_apply": 5,
+      "uncertain": 2
+    },
+    "destructive_overwrite": {
+      "applies": 3,
+      "does_not_apply": 3,
+      "uncertain": 2
+    },
+    "mass_deletion": {
+      "applies": 4,
+      "does_not_apply": 6,
+      "uncertain": 1
+    },
+    "review_bypass": {
+      "applies": 4,
+      "does_not_apply": 7,
+      "uncertain": 2
+    },
+    "secret_export": {
+      "applies": 2,
+      "does_not_apply": 4,
+      "uncertain": 2
+    }
+  },
+  "review_status": "pending_human_review",
+  "validation": "Pydantic dataset invariants, parser expectation consistency, exact normalized duplicate checks against existing v3 retrieval/evaluation files. Not independent label approval.",
+  "closest_existing_text_pairs": [
+    {
+      "character_similarity": 0.7578,
+      "case_id": "fresh-002",
+      "existing_file": "corpus.json",
+      "existing_id": "deletion-02"
+    },
+    {
+      "character_similarity": 0.75,
+      "case_id": "fresh-007",
+      "existing_file": "corpus.json",
+      "existing_id": "bypass-02"
+    },
+    {
+      "character_similarity": 0.7416,
+      "case_id": "fresh-009",
+      "existing_file": "evaluation.json",
+      "existing_id": "eval-bypass-02"
+    },
+    {
+      "character_similarity": 0.7253,
+      "case_id": "fresh-014",
+      "existing_file": "corpus.json",
+      "existing_id": "export-04"
+    },
+    {
+      "character_similarity": 0.7164,
+      "case_id": "fresh-022",
+      "existing_file": "corpus.json",
+      "existing_id": "export-05"
+    },
+    {
+      "character_similarity": 0.7111,
+      "case_id": "fresh-010",
+      "existing_file": "corpus.json",
+      "existing_id": "bypass-05"
+    },
+    {
+      "character_similarity": 0.7083,
+      "case_id": "fresh-047",
+      "existing_file": "corpus.json",
+      "existing_id": "export-08"
+    },
+    {
+      "character_similarity": 0.7016,
+      "case_id": "fresh-001",
+      "existing_file": "corpus.json",
+      "existing_id": "deletion-01"
+    }
+  ],
+  "similarity_limit": "Character similarity identifies review candidates only; it cannot establish semantic independence. Shared scenario mechanisms are intentional.",
+  "sha256": {
+    "cases.json": "3133ca3cf28a1babf2ddd9c5c981aac1398cd162f84d13f5aeee2cf173533786",
+    "parser_expectations.json": "a64b0f007a190abd556049449d71e04a70bdac740bb2159f4633a888fdc9660b",
+    "README.md": "f8e87b7890ba818b7395e6ed041202e96b107e237fa650d1482c52685dc6be69"
+  }
+}

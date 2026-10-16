@@ -17,6 +17,9 @@ import src.models.escalation
 import src.models.token
 import src.models.policy_shadow
 import src.models.runtime
+import src.models.monitoring
+import src.models.clarification
+import src.models.human_review
 # -------------------------
 
 # this is the Alembic Config object, which provides

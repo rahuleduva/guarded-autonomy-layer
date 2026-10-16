@@ -2,10 +2,12 @@
 from sqlmodel import Session, select
 from src.models.autonomy import AutonomyState
 from src.models.decision import DecisionRecord
+from src.models.enums import DecisionStage
 from src.models.policy import Policy
 from src.models.request import ActionRequest, ReplayResult
 from src.services.policy_engine import evaluate
 from src.services.policy_loader import canonical_policy_hash
+from src.services.decision_ledger import validate_policy_record
 
 
 def replay(session: Session, decision_id: str) -> ReplayResult:
@@ -13,10 +15,15 @@ def replay(session: Session, decision_id: str) -> ReplayResult:
         record = session.get(DecisionRecord, decision_id)
         if record is None:
             raise ValueError("decision not found")
+        # Parser rejection replay would require its own validator-version contract;
+        # never send a natural-language rejection through the policy replay engine.
+        if record.decision_stage != DecisionStage.POLICY.value:
+            raise ValueError("policy replay is not applicable to a parser-stage rejection")
         result = dict(decision_id=decision_id, original_outcome=record.outcome,
                       replayed_outcome=record.outcome, policy_hash=record.policy_hash,
                       is_consistent=False)
         try:
+            validate_policy_record(record)
             policy = session.exec(select(Policy).where(Policy.policy_hash == record.policy_hash)).one_or_none()
             if policy is None or canonical_policy_hash(policy.rules_json) != record.policy_hash:
                 raise ValueError("stored policy is missing or its content hash does not match")
@@ -24,6 +31,8 @@ def replay(session: Session, decision_id: str) -> ReplayResult:
             snapshot = record.evidence_json.get("autonomy_snapshot")
             if not snapshot or record.evidence_json.get("environment") != request.environment:
                 raise ValueError("frozen autonomy or environment evidence is missing or inconsistent")
+            from src.services.semantic_pipeline import verify_frozen
+            verify_frozen(record.evidence_json)
             state = AutonomyState(**snapshot)
             replayed = evaluate(request, policy, record.evidence_json, state)
             result["replayed_outcome"] = replayed.outcome

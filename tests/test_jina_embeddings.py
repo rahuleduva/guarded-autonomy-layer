@@ -6,12 +6,15 @@ import pytest
 
 from src.config import settings
 from src.services import embeddings, semantic_engine
+from src.services.llm_routing import current_routing
 
 
 @pytest.fixture
 def jina(monkeypatch):
     monkeypatch.setattr(settings, 'OFFLINE_MODE', False)
-    monkeypatch.setattr(settings, 'EMBEDDING_PROVIDER', 'jina')
+    routing = current_routing().model_copy(deep=True)
+    routing.embeddings.selected = 'jina_v3'
+    monkeypatch.setattr(embeddings, 'current_routing', lambda: routing)
     monkeypatch.setattr(settings, 'JINA_API_KEY', 'test-key')
     monkeypatch.setattr(settings, 'JINA_EMBEDDING_DIMENSIONS', 2)
     monkeypatch.setattr(settings, 'REDIS_URL', '')

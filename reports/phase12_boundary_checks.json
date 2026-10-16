@@ -1,0 +1,16 @@
+{
+  "scope": "In-process API boundary checks with isolated SQLite and controlled provider responses; not cloud E2E or risk accuracy testing.",
+  "passed": [
+    "observe preserves baseline warning",
+    "review clears similarity-only warning while preserving SHADOW",
+    "replay is consistent without analyzer, retrieval or judge calls",
+    "deterministic sandbox denial remains authoritative",
+    "judge failure requires review",
+    "human rejection records no authorization",
+    "compound analysis rejected with no partial decision",
+    "natural-language parsing and analysis share one front-stage response",
+    "natural-language compound output with null action is rejected",
+    "unsupported operations cannot be silently mapped into authorization",
+    "review packages expose frozen semantic findings"
+  ]
+}

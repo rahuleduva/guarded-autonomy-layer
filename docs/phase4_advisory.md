@@ -57,13 +57,13 @@ arbitrary paraphrases and prompt injection.
 
 Online mode with `QDRANT_URL` configured attempts a read-only query against
 `QDRANT_COLLECTION` on an HTTPS cloud Qdrant endpoint. With
-`EMBEDDING_PROVIDER=sentence_transformers`, the optional `sentence-transformers`
-package and cached `SENTENCE_TRANSFORMER_MODEL` are required. The adapter loads
+`embeddings.selected: local_minilm_l6` in `config/llm_routing.yaml`, the optional `sentence-transformers`
+package and cached model are required. The adapter loads
 with `local_files_only=True`, so it will not download a model during a request.
 See the [SentenceTransformer constructor documentation](https://www.sbert.net/docs/package_reference/sentence_transformer/model.html).
 
-With `EMBEDDING_PROVIDER=gemini`, the adapter uses `GEMINI_EMBEDDING_MODEL`,
-`GEMINI_EMBEDDING_DIMENSIONS`, and the Gemini/Google key. Optional provider
+With `embeddings.selected: gemini_current`, the adapter uses the model ID from
+the YAML, `GEMINI_EMBEDDING_DIMENSIONS`, and the Gemini/Google key. Optional provider
 packages are listed in `requirements.txt`.
 
 The online corpus is stored in `examples/semantic_advisory_examples.json`: 20
@@ -167,10 +167,10 @@ queueing, and persisted autonomy promotion are implemented in later phases.
 
 ### Jina embeddings
 
-Set `EMBEDDING_PROVIDER=jina` to use Jina for both seed and query embeddings.
+Set `embeddings.selected: jina_v3` in `config/llm_routing.yaml` to use Jina for both seed and query embeddings.
 `JINA_EMBEDDING_URL` defaults to `https://api.jina.ai/v1/embeddings`.
-Set `JINA_API_KEY` for authentication. Defaults are `JINA_EMBEDDING_MODEL=jina-embeddings-v3`
-and `JINA_EMBEDDING_DIMENSIONS=768`. The API uses `text-matching` for both sides.
+Set `JINA_API_KEY` for authentication. Its model ID is in the YAML; the default
+dimension setting is `JINA_EMBEDDING_DIMENSIONS=768`. The API uses `text-matching` for both sides.
 
 Redis cache keys and Qdrant filters include the provider, model, dimensions and
 embedding task. Switching providers requires seeding again, even with equal
@@ -183,3 +183,48 @@ through the existing semantic-unavailable path; vectors from another provider
 are never substituted. Jina reranking remains independently configurable.
 
 API schema: https://api.jina.ai/docs
+
+## Explicit semantic completion (pipeline v2)
+
+The new `semantic-pipeline-v2` / `risk-union-v2` evidence includes a validated
+`summary`. `completion` is `complete`, `partial`, or `unavailable`;
+`assessment` is `clear`, `risk_detected`, `uncertain`, or `not_assessed`.
+A confirmed risk can coexist with incomplete checking. A clear assessment
+requires all necessary checking to complete without blocking gaps.
+
+Qdrant outcomes distinguish successful empty retrieval (`no_evidence`) from
+failed retrieval (`unavailable`) and partly completed work (`partial`). Each
+query records each label search, its filters, matches, and failures. Valid
+matches survive an independent failure; invalid candidates are excluded.
+An empty label bucket alone is informational. Query and candidate budget limits
+remain review reasons. Pending corpus review remains provenance governed by
+`SEMANTIC_V3_ALLOW_UNREVIEWED`.
+
+For example, a judge provider outage produces `partial / not_assessed`, a
+`judge_unavailable` reason, preserved analysis/retrieval evidence, and a skipped
+or unavailable stage where appropriate. Successful searches with zero eligible
+examples produce `partial / not_assessed` with `no_evidence`: the review reason
+says the searches completed without supporting examples and points to the saved
+query/filter evidence. Neither situation is a finding that the action is safe.
+
+In `review` mode these reasons drive the existing semantic escalation input;
+hard policy denials retain precedence. In `observe` mode the summary is recorded
+but the baseline controls the semantic decision. Baseline mode does not run the
+new pipeline. Evaluation responses expose `semantic_summary` and `semantic_mode`.
+Held decisions have no capability token.
+
+Storage uses existing JSON columns: `decision_records.evidence_json.semantic_pipeline`
+and `escalation_queue.package_json.semantic_findings`. Provider attempts and
+validation errors continue in `request_attempt_events`. The judge explicitly
+addresses each analyzer unknown by its original index, with grounded evidence
+for resolution. Unresolved unknowns remain review reasons.
+
+Replay dispatches by the stored pipeline/aggregation version. V1 retains its
+original aggregation and warning text. V2 validates the frozen stages and
+recomputes the summary and selected flag/warning without cloud calls.
+Reviewer actions require a completed held decision and a committed pending
+escalation. Execution, compensation, and promotion enforce their existing
+lifecycle preconditions under locks. Post-approval policy behavior is deferred
+for a separate discussion.
+
+This implementation has not yet been tested; no live verification is claimed.

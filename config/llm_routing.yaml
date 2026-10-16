@@ -1,0 +1,116 @@
+# Credentials and gateway URLs remain in .env. Adapter names map to Python
+# constructors; adding an adapter still requires code in llm_providers.py.
+providers:
+  aicredits:
+    adapter: openai_compatible
+    api_key_setting: AI_CREDITS_API_KEY
+    base_url_setting: AI_CREDITS_API_URL
+  gemini:
+    adapter: google_genai
+    api_key_setting: GEMINI_API_KEY
+  groq:
+    adapter: groq
+    api_key_setting: GROQ_API_KEY
+  sarvam:
+    adapter: sarvam
+    api_key_setting: SARVAM_API_KEY
+
+models:
+  aicredits_safeguard:
+    provider: aicredits
+    model: openai/gpt-oss-safeguard-20b
+  aicredits_qwen_flash:
+    provider: aicredits
+    model: qwen/qwen3.8-flash
+  aicredits_deepseek:
+    provider: aicredits
+    model: deepseek/deepseek-v3.2
+  groq_qwen:
+    provider: groq
+    model: qwen/qwen3.8-27b
+  sarvam_main:
+    provider: sarvam
+    model: sarvam-105b
+  gemini_lite:
+    provider: gemini
+    model: gemini-3.5-flash-lite
+  aicredits_claude_sonnet:
+    provider: aicredits
+    model: anthropic/claude-sonnet-5.5
+  aicredits_nova_micro:
+    provider: aicredits
+    model: amazon/nova-micro-v1
+  aicredits_ternary_bonsai:
+    provider: aicredits
+    model: prism-ml/ternary-bonsai-2-27b
+
+# Select one profile here. Changing it requires seeding separate Qdrant collections.
+embeddings:
+  selected: gemini_current
+  models:
+    local_minilm_l6: {provider: sentence_transformers, model: sentence-transformers/all-MiniLM-L6-v2}
+    gemini_current: {provider: gemini, model: gemini-embedding-2}
+    jina_v3: {provider: jina, model: jina-embeddings-v3}
+    aicredits_bge_base: {provider: aicredits, model: baai/bge-base-en-v1.5}
+    aicredits_bge_large: {provider: aicredits, model: baai/bge-large-en-v1.5}
+    aicredits_bge_m3: {provider: aicredits, model: baai/bge-m3}
+    aicredits_gemini_001: {provider: aicredits, model: google/gemini-embedding-001}
+    aicredits_gemini_2_preview: {provider: aicredits, model: google/gemini-embedding-2-preview}
+    aicredits_e5_base: {provider: aicredits, model: intfloat/e5-base-v2}
+    aicredits_e5_large: {provider: aicredits, model: intfloat/e5-large-v2}
+    aicredits_e5_multilingual: {provider: aicredits, model: intfloat/multilingual-e5-large}
+    aicredits_e5_multilingual_instruct: {provider: aicredits, model: intfloat/multilingual-e5-large-instruct}
+    aicredits_minilm_l12: {provider: aicredits, model: sentence-transformers/all-minilm-l12-v2}
+    aicredits_minilm_l6: {provider: aicredits, model: sentence-transformers/all-minilm-l6-v2}
+    aicredits_mpnet_base: {provider: aicredits, model: sentence-transformers/all-mpnet-base-v2}
+    aicredits_paraphrase_minilm_l6: {provider: aicredits, model: sentence-transformers/paraphrase-minilm-l6-v2}
+    aicredits_text_004: {provider: aicredits, model: google/text-embedding-004}
+    aicredits_openai_3_large: {provider: aicredits, model: openai/text-embedding-3-large}
+    aicredits_3_large: {provider: aicredits, model: text-embedding-3-large}
+    aicredits_openai_3_small: {provider: aicredits, model: openai/text-embedding-3-small}
+    aicredits_3_small: {provider: aicredits, model: text-embedding-3-small}
+    aicredits_openai_ada_002: {provider: aicredits, model: openai/text-embedding-ada-002}
+    aicredits_ada_002: {provider: aicredits, model: text-embedding-ada-002}
+    aicredits_gte_base: {provider: aicredits, model: thenlper/gte-base}
+    aicredits_gte_large: {provider: aicredits, model: thenlper/gte-large}
+
+fallback_policies:
+  transient:
+    http_statuses: [408, 429, 500, 502, 503, 504]
+    on_timeout: true
+    on_connection_error: true
+
+purposes:
+# Output attempts include the initial answer; provider retries reset for each output attempt.
+  request_parser:
+    models: [aicredits_deepseek, gemini_lite, aicredits_qwen_flash]
+    fallback_policy: transient
+    timeout_seconds: 20
+    max_output_tokens: 6144
+    max_output_attempts: 3
+    max_provider_retries_per_attempt: 1
+    stage_timeout_seconds: 120
+  request_analyzer:
+    models: [aicredits_deepseek, gemini_lite, aicredits_qwen_flash]
+    fallback_policy: transient
+    timeout_seconds: 20
+    max_output_tokens: 6144
+    max_output_attempts: 3
+    max_provider_retries_per_attempt: 1
+    stage_timeout_seconds: 120
+  semantic_judge:
+    models: [gemini_lite, aicredits_qwen_flash, groq_qwen,]
+    fallback_policy: transient
+    timeout_seconds: 20
+    max_output_tokens: 6144
+    max_output_attempts: 3
+    max_provider_retries_per_attempt: 1
+    stage_timeout_seconds: 120
+  review_explainer:
+    models: [gemini_lite, aicredits_deepseek,]
+    fallback_policy: transient
+    timeout_seconds: 20
+    max_output_tokens: 2048
+    max_output_attempts: 2
+    max_provider_retries_per_attempt: 1
+    stage_timeout_seconds: 80

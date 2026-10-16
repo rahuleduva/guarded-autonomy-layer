@@ -14,7 +14,7 @@ The user will switch to Luna or Sol light to execute and observe this plan. Read
 - Test agents and resources use a unique run prefix. Existing resources, policies, reviews, and vectors remain part of the baseline.
 - Human responses are simulated by submitting `approve: true/false` through the control APIs with a run-specific reviewer ID. The user has authorized this as part of E2E testing. There is no reviewer web UI or authentication flow to test here.
 - Execution changes **database-backed simulated resources**. It does not create files on the host filesystem.
-- Policy promotion and reviewer approval deliberately change the active policy. Log the original active hash and all subsequent hashes. Do not automatically restore the active pointer afterward: that would be an additional policy change outside the tested workflow.
+- Policy promotion can change the active policy. Human review does not create a policy version; it uses the frozen package and current deterministic checks.
 - Keep raw keys, connection strings, and capability tokens out of terminal output and reports. Tokens stay in Python memory; the helper journal redacts them. Do not enable HTTP debug logging.
 - A network sandbox failure requires the platform's normal execution approval. Do not work around it with another tool. User authorization for testing does not bypass platform access controls.
 - If a request times out, inspect the database for its request/decision/resource before retrying: the server may have committed. Do not blindly repeat approvals, promotions, execution, or rollback.
@@ -43,7 +43,7 @@ t.discover()
 
 Observe the journal and terminal output for:
 
-1. `OFFLINE_MODE=false`, `EMBEDDING_PROVIDER=gemini`, chosen LLM/model, configured embedding dimensions, collection, cutoff, and credential-presence booleans.
+1. `OFFLINE_MODE=false`, `embeddings.selected: gemini_current` in the routing YAML, chosen LLM/model, configured embedding dimensions, collection, cutoff, and credential-presence booleans.
 2. GET `/api/v1/health` succeeds and `/openapi.json` contains the expected routes.
 3. PostgreSQL connectivity, required tables, and `alembic_version` matching the revision head in this checkout.
 4. Exactly one active policy and at most one shadow candidate. Every stored policy passes schema, version, and canonical-hash validation.
@@ -89,7 +89,7 @@ Expected:
 - Vector dimensions incompatible: do not resize/delete/recreate the existing collection. Configure a separate test collection, for example `QDRANT_COLLECTION=guarded_online_gemini_768`, with dimensions consistent with settings. Record the `.env` change, restart FastAPI, and restart the interactive session before seeding. Preserve the Colab `items` collection.
 - Benign probe incorrectly flagged: run `python -m src.cli calibrate-semantic` in a separate shell and inspect the measured scores. It does not apply changes. Do not disable semantics or arbitrarily raise the threshold just to pass. Any justified cutoff change must be recorded, followed by a server/session restart and a fresh run.
 - Provider error/fallback: stop online acceptance work and report the dependency failure. Do not count an offline response as success.
-- Only the configured LLM is covered by this run. To claim both Gemini and Groq integration, repeat the probe and natural-language scenario in another run with the other `LLM_PROVIDER`, restarting server/session. Embeddings remain Gemini.
+- Only the configured chat provider is covered by this run. Supported providers are Sarvam, Gemini, and Groq; repeat the probe and natural-language scenario with each provider you intend to claim, restarting the server/session between runs. Embeddings remain Gemini.
 
 All later helper evaluations audit online provenance in the stored decision, not merely the API response.
 
@@ -184,25 +184,25 @@ t.check("approved creation stored", t.resource(approved["action_request"]["targe
         == {"kind": "file", "content": "Hello"})
 ```
 
-The review request is POST `/api/v1/control/approve/<original decision_id>`:
+The review request is POST `/api/v1/control/approve/<original decision_id>`. The interactive helper fetches the package and sends its exact `package_fingerprint`:
 
 ```json
 {
   "decision_id": "<original decision_id>",
   "reviewer_id": "<run>_reviewer",
   "approve": true,
-  "note": "Online E2E test reviewer response"
+  "note": "Online E2E test reviewer response",
+  "package_fingerprint": "<fingerprint-returned-with-package>"
 }
 ```
 
 Expected sequence:
 
-1. Original review package becomes APPROVED and records reviewer/note/time.
-2. The active policy gets a new patch version and canonical hash.
-3. A **new request and decision** are created; original remains PENDING_APPROVAL with its original policy hash/evidence.
-4. New evaluation is ALLOWED with an action-specific token and trusted approval evidence.
-5. POST `/actions/execute` with the **new** decision ID and token returns EXECUTED. Inspect before/after snapshots and resource state.
-6. Execute promptly: the current LOW TTL is 300 seconds. Approval alone does not execute the action.
+1. The reviewer response and note are recorded in `human_review_records`; the package becomes APPROVED.
+2. The active policy version and hash do not change. The original held decision remains unchanged.
+3. The app runs deterministic policy checks with the exact frozen evidence and creates a linked authorization decision. Parsing, embeddings, Qdrant, and semantic judgment do not run again.
+4. The response distinguishes human review (`status`) from authorization (`authorization_status`). A token appears only if authorization is `ALLOWED`; a hard restriction can leave authorization `BLOCKED` after human approval.
+5. Approval alone does not execute. If a token was issued, POST `/actions/execute` with the linked authorization decision ID and token.
 
 ## 7. Reject a held action and reject duplicate human responses
 
@@ -213,19 +213,23 @@ rejection = t.review(rejected_pending, approve=False)
 t.check("rejection does not change active policy", t.read("SELECT policy_hash FROM policies WHERE is_active")[0]["policy_hash"] == hash_before_rejection)
 t.check("rejected action not executed", t.resource(rejected_pending["action_request"]["target_resource"]) is None)
 before_duplicate_review = t.counts()
+package = t.read("SELECT package_json FROM escalation_queue WHERE decision_id=:id",
+                 {"id": pending["decision_id"]})[0]["package_json"]
 duplicate_review = t.api("POST", "/control/approve/" + pending["decision_id"], {
-    "decision_id": pending["decision_id"], "reviewer_id": t.reviewer, "approve": True
-}, expected_http=400)
+    "decision_id": pending["decision_id"], "reviewer_id": t.reviewer, "approve": True,
+    "note": "Repeat request", "package_fingerprint": package["package_fingerprint"]
+}, expected_http=409)
 t.check("duplicate review creates no rows", t.counts() == before_duplicate_review)
 ```
 
-Expected: rejection returns REJECTED, no new evaluation/version/token; package leaves the pending list, original decision remains unchanged. The repeated review of the already-approved decision returns HTTP 400 and creates no further approval/policy bump. Also test mismatched path/body decision IDs → HTTP 400 before processing.
+Expected: rejection returns REJECTED, no authorization decision or token; package leaves the pending list, original decision remains unchanged. The repeated review of the already-decided request returns HTTP 409 and creates no duplicate review. Also test mismatched path/body decision IDs → HTTP 400 before processing.
 
 ```python
 policies_before_duplicate = t.read("SELECT policy_hash FROM policies ORDER BY policy_hash")
 decision_count_before_mismatch = t.read("SELECT count(*) AS n FROM decision_records")[0]["n"]
 mismatched_review = t.api("POST", "/control/approve/" + pending["decision_id"], {
-    "decision_id": rejected_pending["decision_id"], "reviewer_id": t.reviewer, "approve": True
+    "decision_id": rejected_pending["decision_id"], "reviewer_id": t.reviewer, "approve": True,
+    "note": "Mismatched request", "package_fingerprint": package["package_fingerprint"]
 }, expected_http=400)
 t.check("mismatched review changes no policies or decisions",
     t.read("SELECT policy_hash FROM policies ORDER BY policy_hash") == policies_before_duplicate
@@ -429,7 +433,7 @@ critical_review = t.review(critical, approve=True, expected="ESCALATED")
 t.check("critical action never gets token", critical_review["evaluation"]["capability_token"] is None)
 ```
 
-Expected: reason identifies CRITICAL/no issuable token. Human approval records a policy bump and a new evaluation, but it cannot override null TTL. New decision is queued again; no execution occurs. This is an APPROVED review whose reevaluation still cannot execute, not an ALLOWED result. Leave the new hold visible in the report rather than repeatedly approving it.
+Expected: reason identifies CRITICAL/no issuable token. Human review is APPROVED, authorization is BLOCKED, the linked decision remains ESCALATED, and no token is issued. Policy version/hash remain unchanged. No new escalation is queued. The original reviewed package leaves the pending queue.
 
 ## 18. Insufficient agent evidence and streak reset
 
@@ -531,7 +535,7 @@ Expected:
 
 1. The run has examples of SHADOW_LOGGED, PENDING_APPROVAL, ALLOWED, DENIED, and ESCALATED.
 2. Every run decision, including reevaluations and compensation decisions, replays consistently from its stored policy and frozen evidence.
-3. Old decisions remain consistent after reviewer version bumps, candidate promotion, and autonomy promotion.
+3. Old decisions remain consistent after human-review finalization, candidate promotion, and autonomy promotion.
 4. Replay performs no fresh LLM/embedding calls or executions and creates no new rows. Avoid concurrent activity while comparing before/after counts; otherwise inspect row differences before attributing changes to replay.
 5. Unknown decision returns 404.
 
@@ -578,7 +582,7 @@ EVAL-3 hold/package: scenarios 14-17
 EVAL-4 token replay + actual expiry: scenarios 8-10 (both required)
 EVAL-5 compensation: scenario 12
 EVAL-6 candidate shadow + reviewer promotion: scenarios 3-5
-EVAL-7 human response + policy bump: scenarios 6, 14
+EVAL-7 human response + linked authorization: scenarios 6, 14. The original assignment policy-bump requirement is deliberately superseded by the user-approved finalization design.
 EVAL-8 replay: scenario 20
 EVAL-9 fresh agent SHADOW: scenarios 4, 11
 EVAL-10 ASSISTED pending approval: scenario 4
@@ -594,3 +598,7 @@ Do not clean up by deleting audit history or vectors, mass-rejecting unrelated r
 ## Short instruction to the executing model
 
 > Execute `docs/ONLINE_E2E_PLAN.md` one section at a time using `scripts/online_e2e_session.py`. Start with read-only discovery of the running API, PostgreSQL, Qdrant and providers. Preserve existing data. Run real HTTP flows with online provenance checks and simulated human responses. Do not run unit tests or the offline harness. Stop dependent scenarios on failed prerequisites; report failures honestly. Keep secrets/tokens redacted. Produce the run journal and a scenario-by-scenario report. Do not modify application code while executing this plan.
+
+## Human-review regression checks
+
+Before declaring the updated flow verified, follow [HUMAN_REVIEW_E2E.md](HUMAN_REVIEW_E2E.md). It covers invalid notes, fingerprints, stale policies, concurrent reviewers, rollback, explanation fallback/coverage, resolved questions, and cloud-free approval. The checks are prepared; execution results must be recorded separately.

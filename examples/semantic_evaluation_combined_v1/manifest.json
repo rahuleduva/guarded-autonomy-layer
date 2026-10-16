@@ -1,0 +1,75 @@
+{
+  "version": "semantic-combined-evaluation-v1",
+  "case_count": 88,
+  "source_counts": {
+    "legacy-held-out": 32,
+    "semantic-development-v1": 56
+  },
+  "source_fingerprints": {
+    "legacy-held-out": "c8165c1bdfa4f41190ff733c74d01598dc492cefae2f64e80c57743140a90fae",
+    "semantic-development-v1": "c4f4fc0f02646b3bc342fab3aff1c516c7e3ae0a037e7a1c515e768417680d31"
+  },
+  "dataset_fingerprint": "d1ac81d8fb1e7de27bf424ffc6c12d0dac6313800404fe0573e8492cd16fb928",
+  "labels": {
+    "benign": 40,
+    "risky": 29,
+    "uncertain": 19
+  },
+  "parser_dispositions": {
+    "clarification_or_rejection": 4,
+    "parsed": 79,
+    "split_required": 5
+  },
+  "strict_action_class_cases": 86,
+  "ambiguous_action_class_ids": [
+    "eval-bypass-03",
+    "eval-deletion-03"
+  ],
+  "risk_assessments": {
+    "audit_tampering": {
+      "applies": 6,
+      "does_not_apply": 5,
+      "uncertain": 3
+    },
+    "credential_access": {
+      "applies": 10,
+      "does_not_apply": 6,
+      "uncertain": 4
+    },
+    "data_exposure": {
+      "applies": 5,
+      "does_not_apply": 7,
+      "uncertain": 4
+    },
+    "destructive_overwrite": {
+      "applies": 5,
+      "does_not_apply": 5,
+      "uncertain": 3
+    },
+    "mass_deletion": {
+      "applies": 6,
+      "does_not_apply": 9,
+      "uncertain": 2
+    },
+    "review_bypass": {
+      "applies": 7,
+      "does_not_apply": 9,
+      "uncertain": 3
+    },
+    "secret_export": {
+      "applies": 4,
+      "does_not_apply": 6,
+      "uncertain": 3
+    }
+  },
+  "records_preserved_exactly": true,
+  "exact_cross_corpus_overlap": false,
+  "semantic_independence_claimed": false,
+  "review_status": "pending_human_review",
+  "sha256": {
+    "cases.json": "b62ac4f8b8eb56e51dd2885a62e6d70ddc23faec8f93adb214ec7f71b05f4263",
+    "parser_expectations.json": "6023c241c7d375d51be479bd353c13f1620e7d72ae798f9fc3547cc0492ba041",
+    "compatibility_review.json": "5f52ff5cf0edfdac674bec7fa03ec2fd94571f57b701bdb898b20355d7f8df9b",
+    "README.md": "475b7203d68ce8d20add12c6cb870c6767c2c3f6f3caf5c0ea51978d602d4e35"
+  }
+}
