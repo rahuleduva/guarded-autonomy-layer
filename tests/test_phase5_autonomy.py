@@ -21,6 +21,7 @@ from src.services.shadow_engine import evaluate_and_record
 @pytest.fixture
 def engine(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "OFFLINE_MODE", True)
+    monkeypatch.setattr(settings, "SEMANTIC_PIPELINE_MODE", "baseline")
     monkeypatch.setattr(settings, "PROMOTION_THRESHOLD_ASSISTED", 2)
     monkeypatch.setattr(settings, "PROMOTION_THRESHOLD_LIVE", 4)
     database = create_engine(f"sqlite:///{tmp_path / 'autonomy.db'}")

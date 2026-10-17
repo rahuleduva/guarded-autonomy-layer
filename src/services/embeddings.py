@@ -58,6 +58,8 @@ def query_embedding(text: str, compute) -> list[float]:
     are logged by exception type and fall through to the configured embedder.
     The cache key hashes the text so raw prompts are not stored in Redis keys.
     """
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     redis_url = settings.REDIS_URL
     key = None
     client = None
@@ -99,6 +101,8 @@ def query_embedding(text: str, compute) -> list[float]:
 
 
 def gemini_embed(text: str) -> list[float]:
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     if settings.OFFLINE_MODE or not settings.GEMINI_API_KEY:
         raise ValueError("Gemini embedding is unavailable in offline mode or without a key")
     from google import genai
@@ -120,6 +124,8 @@ def gemini_embed(text: str) -> list[float]:
 
 def jina_embed(text: str) -> list[float]:
     """Embed seeds and queries with the same Jina similarity task."""
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     import httpx
 
     key = settings.JINA_API_KEY
@@ -155,6 +161,8 @@ def jina_embed(text: str) -> list[float]:
 
 def aicredits_embed(text: str) -> list[float]:
     """OpenAI-compatible embedding endpoint; model IDs come from the catalog."""
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     import httpx
 
     if settings.OFFLINE_MODE or not settings.AI_CREDITS_API_KEY:

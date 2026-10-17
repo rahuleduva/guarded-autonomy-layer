@@ -7,6 +7,8 @@ from src.config import settings
 
 
 def rerank(query: str, candidates: list[dict]) -> dict:
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     evidence = {"provider": "jina", "model": settings.JINA_RERANKER_MODEL,
                 "mode": settings.JINA_RERANKER_MODE, "status": "skipped"}
     if settings.OFFLINE_MODE or settings.JINA_RERANKER_MODE == "disabled":

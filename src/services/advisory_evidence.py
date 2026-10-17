@@ -31,6 +31,10 @@ def build_evidence(
     autonomy_state: Optional[AutonomyState] = None,
 ) -> dict[str, Any]:
     """Freeze the metrics, warning, environment, and autonomy used by a decision."""
+    # The keyless baseline is pure local calculation and performs no slow I/O.
+    if not settings.OFFLINE_MODE or settings.SEMANTIC_PIPELINE_MODE != 'baseline':
+        from src.db.transaction_guard import assert_no_transaction
+        assert_no_transaction()
     with monitoring.span("blast_radius"):
         radius = blast_radius.estimate(request)
     with monitoring.span("semantic_baseline") as event:

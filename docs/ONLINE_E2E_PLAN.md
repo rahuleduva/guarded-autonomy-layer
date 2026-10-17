@@ -1,5 +1,13 @@
 # Online end-to-end execution handoff
 
+Authentication prerequisite: follow [authentication.md](authentication.md) to
+apply the authentication schema and provision every scenario agent/reviewer.
+Configure the updated interactive helper's credential maps before requests.
+Reviewer IDs must be verified principal IDs; arbitrary test names no longer
+grant access. Approval responses omit capabilities: the helper retrieves the
+authorization result with the owning agent's key. Legacy direct HTTP examples
+require the corresponding `X-API-Key` headers.
+
 Prepared against the current application code. **This is an execution plan, not a test-results report. No live readiness or scenario success is claimed.**
 
 The user will switch to Luna or Sol light to execute and observe this plan. Read this document before making requests. Run each section separately, inspect its result, and continue only when its prerequisites pass. Do not run unit tests, the offline scenario harness, Docker, or deployment steps. Do not change application code to make a check pass.
@@ -103,7 +111,7 @@ active_before = t.read("SELECT policy_hash FROM policies WHERE is_active")[0]["p
 # Execute the following only when runs < t.P and violations is empty.
 premature_policy = t.api("POST", "/control/promote-policy", {
     "candidate_policy_hash": t.candidate, "reviewer_id": t.reviewer, "approve": True
-})
+}, headers={"Idempotency-Key": t.run_id + "-premature-policy"})
 t.check("candidate below threshold stays shadow", premature_policy["promoted"] is False
         and premature_policy["active_policy_hash"] == active_before)
 ```
@@ -161,11 +169,11 @@ qualified = t.candidate_evidence()
 t.check("candidate qualified", qualified["qualified"])
 declined_policy = t.api("POST", "/control/promote-policy", {
     "candidate_policy_hash": t.candidate, "reviewer_id": t.reviewer, "approve": False
-})
+}, headers={"Idempotency-Key": t.run_id + "-decline-policy"})
 t.check("reviewer can decline qualified policy", declined_policy["promoted"] is False)
 promoted_policy = t.api("POST", "/control/promote-policy", {
     "candidate_policy_hash": t.candidate, "reviewer_id": t.reviewer, "approve": True
-})
+}, headers={"Idempotency-Key": t.run_id + "-approve-policy"})
 t.check("qualified policy activated", promoted_policy["promoted"] is True
         and promoted_policy["active_policy_hash"] == t.candidate)
 ```

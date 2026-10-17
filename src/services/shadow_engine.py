@@ -73,9 +73,19 @@ def evaluate_and_record(
     The caller must commit both records together, or roll back on any error.
     Database failures propagate so a failed candidate audit cannot be ignored.
     """
-    active_policy = session.exec(
-        select(Policy).where(Policy.is_active == True)
-    ).one_or_none()
+    if evidence is None:
+        from src.config import settings
+        if not settings.OFFLINE_MODE or settings.SEMANTIC_PIPELINE_MODE != 'baseline':
+            if session.in_transaction():
+                raise RuntimeError('collect evidence outside the transaction before policy finalization')
+            from src.db.transaction_guard import assert_no_transaction
+            assert_no_transaction()
+        evidence = build_evidence(request)
+    from src.services.policy_store import active
+    try:
+        active_policy = active(session)
+    except ValueError as exc:
+        raise ValueError('cannot evaluate an action without an active policy') from exc
     if active_policy is None:
         raise ValueError("cannot evaluate an action without an active policy")
     candidate_policy = session.exec(
@@ -94,12 +104,9 @@ def evaluate_and_record(
     # Collect once for active/candidate parity. Supplied advisory values are
     # preserved; the actual environment and autonomy gate inputs are frozen
     # here so the audit never contains a stale or client-asserted snapshot.
-    if evidence is None:
-        evidence = build_evidence(request, autonomy_state)
-    else:
-        evidence = copy.deepcopy(evidence)
-        evidence["environment"] = request.environment
-        evidence["autonomy_snapshot"] = autonomy_snapshot(request, autonomy_state)
+    evidence = copy.deepcopy(evidence)
+    evidence["environment"] = request.environment
+    evidence["autonomy_snapshot"] = autonomy_snapshot(request, autonomy_state)
 
     if candidate_policy is None:
         active_result = evaluate(request, active_policy, evidence, autonomy_state)

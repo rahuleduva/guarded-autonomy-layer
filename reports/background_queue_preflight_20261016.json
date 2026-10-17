@@ -1,0 +1,48 @@
+{
+  "recorded_at": "2026-10-16T16:18:47.893695+00:00",
+  "purpose": "Background-processing planning preflight; no application integration",
+  "broker_environment_variable": "CLOUDAMQP_URL",
+  "scheme": "amqps",
+  "certificate_validation": "CERT_REQUIRED",
+  "hostname_validation": true,
+  "server_product": "LavinMQ",
+  "server_version": "2.10.2",
+  "python_version": "3.14.7",
+  "isolated_install": {
+    "celery": "5.6.3",
+    "kombu": "5.6.2",
+    "amqp": "5.4.1",
+    "pip_check": "passed"
+  },
+  "checks": [
+    {
+      "connection": "PASS",
+      "authentication_and_vhost": "PASS",
+      "server_product": "LavinMQ",
+      "server_version": "2.10.2"
+    },
+    {
+      "temporary_queue_declare": "PASS"
+    },
+    {
+      "publish_confirm": "PASS"
+    },
+    {
+      "consume_and_ack": "PASS",
+      "payload_match": "PASS"
+    },
+    {
+      "temporary_queue_cleanup": "PASS",
+      "status": "PASS"
+    }
+  ],
+  "scope_limits": [
+    "One ephemeral exclusive auto-delete queue and one harmless message in final probe",
+    "No application task or Celery worker executed",
+    "No durable production queue declared",
+    "No application models, configuration, requirements or database schema changed",
+    "No LLM calls made",
+    "Installation success on Python 3.14 is not proof of official Celery support"
+  ],
+  "passed": true
+}

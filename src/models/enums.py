@@ -31,6 +31,7 @@ class DecisionStage(str, Enum):
 
 
 class EscalationStatus(str, Enum):
+    PREPARING = "PREPARING"
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"

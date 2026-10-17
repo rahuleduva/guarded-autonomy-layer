@@ -13,7 +13,7 @@ on the process working directory (A1).
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOCAL_POSTGRES_URL = "postgresql://postgres:postgres@localhost:5432/guarded_autonomy"
@@ -43,6 +43,32 @@ class Settings(BaseSettings):
     # Local diagnosis only: re-raise internal errors so the ASGI server logs
     # their traceback instead of hiding them behind the API's generic 503.
     DEV_DIAGNOSTICS: bool = False
+    WORKFLOW_LEASE_SECONDS: int = Field(default=900, ge=30)
+    # Background execution is opt-in until the reviewed schema migration is applied.
+    BACKGROUND_WORKFLOWS_ENABLED: bool = False
+    CLOUDAMQP_URL: SecretStr = SecretStr('')
+    WORKFLOW_QUEUE_NAME: str = Field(default='guarded-autonomy-layer.workflows.v1',
+                                     min_length=1, max_length=200,
+                                     pattern=r'^[A-Za-z0-9._-]+$')
+    WORKFLOW_DISPATCH_POLL_SECONDS: float = Field(default=2, gt=0, le=60)
+    WORKFLOW_DISPATCH_BATCH_SIZE: int = Field(default=10, ge=1, le=100)
+    WORKFLOW_HEARTBEAT_SECONDS: int = Field(default=30, ge=5, le=300)
+    WORKFLOW_MAX_RUN_SECONDS: int = Field(default=600, ge=30, le=86400)
+    WORKFLOW_MAX_AUTOMATIC_RETRIES: int = Field(default=2, ge=0, le=10)
+    WORKFLOW_RETRY_BASE_SECONDS: int = Field(default=10, ge=1, le=3600)
+    WORKFLOW_RETRY_MAX_SECONDS: int = Field(default=300, ge=1, le=86400)
+    WORKFLOW_REDELIVERY_CHECK_SECONDS: int = Field(default=300, ge=10, le=86400)
+    WORKFLOW_QUEUE_TIMEOUT_SECONDS: int = Field(default=86400, ge=60, le=604800)
+    CLOUDAMQP_CONNECTION_TIMEOUT_SECONDS: int = Field(default=10, ge=1, le=120)
+    CLOUDAMQP_PUBLISH_TIMEOUT_SECONDS: int = Field(default=10, ge=1, le=120)
+    # Caller access tokens have a separate key from execution capabilities.
+    AUTH_JWT_SECRET: str = ""
+    AUTH_JWT_ISSUER: str = "guarded-autonomy-layer"
+    AUTH_JWT_AUDIENCE: str = "guarded-autonomy-api"
+    AUTH_ACCESS_TOKEN_TTL_SECONDS: int = Field(default=900, ge=60, le=3600)
+    AUTH_LOGIN_USERNAME_LIMIT: int = Field(default=5, ge=1)
+    AUTH_LOGIN_ADDRESS_LIMIT: int = Field(default=30, ge=1)
+    AUTH_PASSWORD_MAX_CONCURRENCY: int = Field(default=4, ge=1, le=16)
 
     # Optional Redis cache for query embeddings. No Redis connection is made
     # unless REDIS_URL is configured.
@@ -138,6 +164,19 @@ class Settings(BaseSettings):
     def _resolve_database_url(self) -> "Settings":
         if not self.DATABASE_URL:
             self.DATABASE_URL = OFFLINE_SQLITE_URL if self.OFFLINE_MODE else LOCAL_POSTGRES_URL
+        return self
+
+    @model_validator(mode='after')
+    def _validate_background_settings(self) -> "Settings":
+        broker_url = self.CLOUDAMQP_URL.get_secret_value().strip()
+        if self.BACKGROUND_WORKFLOWS_ENABLED and not broker_url:
+            raise ValueError('CLOUDAMQP_URL is required when background workflows are enabled')
+        if self.BACKGROUND_WORKFLOWS_ENABLED and not broker_url.startswith('amqps://'):
+            raise ValueError('CLOUDAMQP_URL must use amqps:// when background workflows are enabled')
+        if self.WORKFLOW_HEARTBEAT_SECONDS * 3 >= self.WORKFLOW_LEASE_SECONDS:
+            raise ValueError('WORKFLOW_HEARTBEAT_SECONDS must be less than one third of WORKFLOW_LEASE_SECONDS')
+        if self.WORKFLOW_RETRY_MAX_SECONDS < self.WORKFLOW_RETRY_BASE_SECONDS:
+            raise ValueError('WORKFLOW_RETRY_MAX_SECONDS must be >= WORKFLOW_RETRY_BASE_SECONDS')
         return self
 
 

@@ -206,6 +206,8 @@ def _check_coverage(output: ReviewExplanationOutput, requirements: list[ReviewRe
 def explain(package: EscalationPackage, original_evidence: dict[str, Any],
             policy_rules: dict[str, Any]) -> tuple[list[ReviewRequirement], ReviewExplanation]:
     """Explain recorded concerns; on any model/validation failure use deterministic prose."""
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     requirements = build_requirements(package, original_evidence, policy_rules)
     if not requirements:
         raise ValueError("a review package must contain at least one review requirement")

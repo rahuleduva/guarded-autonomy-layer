@@ -255,6 +255,8 @@ def aggregate(analysis, retrieval, judgment):
 
 
 def run(request, *, analysis=None, expanded=True):
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     source = request_analysis.source_text(request)
     analysis = analysis or request_analysis.analyze(source)
     result = dict(version=VERSION, aggregation_version=AGGREGATION_VERSION,

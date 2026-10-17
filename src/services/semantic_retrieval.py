@@ -34,6 +34,8 @@ def plan(request, analysis):
 
 
 def retrieve(request, analysis, *, expanded=True):
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     from qdrant_client import models
     from src.services.semantic_engine import _cloud_client, _vector
     corpus = corpus_service.load()

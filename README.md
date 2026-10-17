@@ -1,5 +1,12 @@
 # Guarded Autonomy Layer
 
+Caller authentication, credential provisioning, and login are documented in
+[docs/authentication.md](docs/authentication.md). Agents use `X-API-Key`;
+humans use personal API keys or username/password login with bearer JWTs.
+Apply the authentication migration and provision callers before using the API.
+
+Durable processing, idempotency, and transaction boundaries are documented in [docs/short_transactions_plan.md](docs/short_transactions_plan.md).
+
 Human-review package and approval behavior is documented in [docs/human_review_finalization.md](docs/human_review_finalization.md).
 
 A FastAPI backend that evaluates agent actions before authorizing execution. It combines deterministic policy rules, semantic risk evidence, human review, and recorded autonomy history. Every decision is logged with the policy and evidence needed to replay it later.
@@ -29,7 +36,7 @@ Supported actions are `read_file`, `create_file`, `create_directory`, `update_fi
 4. The orchestrator persists the decision and any shadow result or review package. An `ALLOWED` decision receives a capability token after the transaction commits.
 5. The caller submits the decision ID and token to the execution endpoint. Execution verifies authorization, token binding, expiry, single use, and resource preconditions before changing simulated state.
 
-Evaluation alone does not execute an action. Human approval creates a new decision under a new policy version; the original decision remains available for audit and replay.
+Evaluation alone does not execute an action. Human approval creates a new authorization decision under the existing active policy; the original decision remains available for audit and replay.
 
 ### Decision outcomes
 
@@ -69,6 +76,8 @@ Create a local `.env` file using your own endpoints and credentials. `.env` is i
 OFFLINE_MODE=false
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
 SECRET_KEY=REPLACE_WITH_A_RANDOM_SIGNING_SECRET
+AUTH_JWT_SECRET=REPLACE_WITH_A_DIFFERENT_RANDOM_SECRET_AT_LEAST_32_BYTES
+AUTH_ACCESS_TOKEN_TTL_SECONDS=900
 DEV_DIAGNOSTICS=false
 
 AI_CREDITS_API_URL=https://YOUR_GATEWAY/v1
@@ -87,7 +96,7 @@ QDRANT_URL=https://YOUR_CLUSTER.cloud.qdrant.io
 QDRANT_API_KEY=YOUR_QDRANT_API_KEY
 QDRANT_COLLECTION=policy_prompts
 
-# Optional embedding cache
+# Embedding cache and required human-login rate limiter
 REDIS_URL=rediss://USER:PASSWORD@HOST:PORT
 REDIS_NAMESPACE=guarded-autonomy-layer
 EMBEDDING_CACHE_TTL_SECONDS=86400
@@ -223,6 +232,11 @@ All paths below have the prefix `/api/v1`.
 | GET | `/replay/{decision_id}` | Reproduce a stored decision |
 
 See `/docs` for the complete request and response schemas, including promotion payloads.
+
+Both promotion endpoints require an `Idempotency-Key` header containing 1 to 200
+characters, for example `Idempotency-Key: promotion-attempt-001`. Reuse the key
+and identical payload when retrying an attempt. Use a new key to request a new
+attempt after eligibility changes. Missing headers return HTTP 422.
 
 ## Providers, retrieval, and caching
 

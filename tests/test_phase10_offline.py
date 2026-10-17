@@ -110,14 +110,16 @@ def test_api_human_review_and_policy_promotion(runtime_session):
         assert approved.json()["evaluation"]["capability_token"]
         assert client.post(f"/api/v1/control/approve/{held['decision_id']}", json=review).status_code == 409
         assert client.post("/api/v1/control/promote-agent", json={"agent_id": "new", "action_class": "read_file",
-            "reviewer_id": "api-reviewer", "approve": True}).json()["promoted"] is False
+            "reviewer_id": "api-reviewer", "approve": True},
+            headers={"Idempotency-Key": "promote-new-agent"}).json()["promoted"] is False
         from src.models.policy import Policy
         candidate = session.exec(select(Policy).where(Policy.is_shadow == True)).one()
         for _ in range(settings.PROMOTION_THRESHOLD_POLICY):
             propose(session)
         session.commit()
         response = client.post("/api/v1/control/promote-policy", json={"candidate_policy_hash": candidate.policy_hash,
-            "reviewer_id": "api-reviewer", "approve": True})
+            "reviewer_id": "api-reviewer", "approve": True},
+            headers={"Idempotency-Key": "promote-candidate-policy"})
         assert response.status_code == 200 and response.json()["promoted"] is True
         assert response.json()["active_policy_hash"] == candidate.policy_hash
 

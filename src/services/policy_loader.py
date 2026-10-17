@@ -190,6 +190,10 @@ def seed_policy_artifacts(
     if len(versions) != len(set(versions)):
         raise PolicyValidationError("policy artifacts contain duplicate versions")
 
+    # Bootstrap is another writer of the active pointer. Serialize it with
+    # promotion and other seeders before deciding whether the table is empty.
+    from src.services.policy_store import lock_active_policy
+    lock_active_policy(session)
     existing = session.exec(select(Policy)).all()
     bootstrap = not existing
     if bootstrap and not {"1.0.0", "1.1.0"}.issubset(set(versions)):

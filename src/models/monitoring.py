@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import Column
+from sqlalchemy import Column, UniqueConstraint, Index
 from sqlmodel import Field, SQLModel
 from src.models.types import JSONType
 
@@ -12,6 +12,7 @@ class RequestAttemptEvent(SQLModel, table=True):
     __tablename__ = "request_attempt_events"
 
     event_id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    operation_id: str | None = Field(default=None, foreign_key='workflow_operations.operation_id', index=True)
     attempt_id: str = Field(index=True)
     sequence: int
     route: str
@@ -30,3 +31,8 @@ class RequestAttemptEvent(SQLModel, table=True):
     )
     decision_id: Optional[str] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint('attempt_id', 'sequence', name='uq_request_attempt_sequence'),
+        Index('ix_request_attempt_operation_sequence', 'operation_id', 'sequence'),
+    )

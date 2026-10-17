@@ -63,6 +63,8 @@ def validate_result(result: RequestAnalysis, source: str, *, system=SYSTEM, sche
 
 
 def analyze(source: str):
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     provider, model = provider_info('ANALYZER')
     system = SYSTEM
     parser = RoutedStructuredParser('request_analyzer', RequestAnalysis)
@@ -92,7 +94,7 @@ def analyze(source: str):
             stage = 'analyzer_primary' if profile.name == first_profile.name else 'analyzer_fallback'
         else:
             stage = 'analyzer_correction'
-        monitoring.record(stage, status, duration_ms=duration_ms,
+        monitoring.record_attempt(stage, status, duration_ms=duration_ms,
                           provider=profile.provider, model=profile.model,
                           error_type=type(exc).__name__ if exc else None,
                           http_status=http_status(exc) if exc else None,

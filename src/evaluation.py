@@ -47,7 +47,16 @@ def propose(session, action="read_file", agent="demo-agent", role="workspace_age
     values = dict(agent_id=agent, actor_role=role, action_class=action,
                   target_resource="/srv/agent/workspace/demo.txt", environment="development")
     values.update(overrides)
-    return evaluate_action(session, ActionRequest(**values))
+    # The synthetic harness owns its setup writes; release them before cloud or
+    # advisory work just as the API does through durable operations.
+    from src.services import workflow, workflow_flows
+    from src.models.request import EvaluationResponse
+    import json
+    session.commit()
+    action_request = ActionRequest(**values)
+    result = workflow.run(session.get_bind(), 'evaluate', agent, action_request.request_id, action_request,
+                          lambda op: workflow_flows.evaluate(op, action_request))
+    return EvaluationResponse.model_validate(json.loads(result.body))
 
 
 def earn_live(session, action="create_file", agent="demo-agent", role="workspace_agent", **overrides):
@@ -111,7 +120,14 @@ def run_scenario(number: int) -> dict:
                 assert token_issuer.verify(expired) is None
                 assert executor.execute(session, allowed.decision_id, expired).status == "REJECTED"
             else:
-                compensation = executor.rollback(session, execution.execution_id)
+                from src.services import workflow, workflow_flows
+                from src.models.request import RollbackResult
+                import json
+                execution_id = execution.execution_id
+                session.commit()
+                compensation = workflow.run(session.get_bind(), 'rollback', execution_id, execution_id,
+                    {'execution_id': execution_id}, lambda op: workflow_flows.rollback(op, execution_id))
+                compensation = RollbackResult.model_validate(json.loads(compensation.body))
                 assert compensation.status == "COMPENSATED"
                 assert compensation.restored_state == execution.before_state
         elif number == 6:

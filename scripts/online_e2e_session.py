@@ -7,12 +7,14 @@ the saved journal redacts them. All resource mutations go through HTTP.
 
 import hashlib
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from threading import Barrier
 from uuid import uuid4
 
 import httpx
+from scripts.api_polling import request_and_wait
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
@@ -31,7 +33,7 @@ from src.services.policy_store import validate_stored
 TABLES = (
     "policies", "decision_records", "shadow_records", "autonomy_state",
     "autonomy_promotion_events", "escalation_queue", "policy_promotion_events",
-    "human_review_records", "simulated_resources", "execution_records", "consumed_tokens",
+    "human_review_records", "simulated_resources", "execution_records", "consumed_tokens", "workflow_operations",
 )
 
 
@@ -39,7 +41,8 @@ def redacted(value):
     if isinstance(value, dict):
         return {
             key: "<redacted>" if key.lower() in {
-                "token", "capability_token", "authorization", "api_key", "secret_key"
+                "token", "capability_token", "authorization", "api_key", "secret_key",
+                "access_token", "password", "x-api-key", "password_hash", "key_hash"
             } and item else redacted(item)
             for key, item in value.items()
         }
@@ -52,8 +55,13 @@ class OnlineSession:
     def __init__(self, base_url="http://127.0.0.1:8000"):
         self.base_url = base_url.rstrip("/")
         self.run_id = "e2e_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:6]
-        self.agent = self.run_id + "_main"
-        self.reviewer = self.run_id + "_reviewer"
+        self.agent = os.environ.get('E2E_MAIN_AGENT', self.run_id + "_main")
+        self.reviewer = os.environ.get('E2E_REVIEWER', self.run_id + "_reviewer")
+        self.agent_keys = json.loads(os.environ.get('E2E_AGENT_API_KEYS', '{}'))
+        self.reviewer_key = os.environ.get('E2E_REVIEWER_API_KEY', '')
+        self.reviewer_keys = json.loads(os.environ.get('E2E_REVIEWER_API_KEYS', '{}'))
+        if self.reviewer_key:
+            self.reviewer_keys[self.reviewer] = self.reviewer_key
         self.root = None
         self.prefix = None
         self.candidate = None
@@ -223,14 +231,32 @@ class OnlineSession:
         self.check("live embedding and cloud query, benign probe", assessment.source == "qdrant:" + embeddings.specification()
                    and assessment.fallback_reason is None and not assessment.flag, assessment.as_evidence())
 
-    def api(self, method, path, payload=None, expected_http=200):
+    def auth_headers(self, path, payload=None, agent=None):
+        if path.startswith(('/control/', '/escalations', '/replay/')):
+            key = self.reviewer_keys.get((payload or {}).get('reviewer_id', self.reviewer))
+        else:
+            identity = agent or (payload or {}).get('agent_id')
+            if not identity and (payload or {}).get('decision_id') in self.decisions:
+                identity = self.decisions[payload['decision_id']]['action_request']['agent_id']
+            key = self.agent_keys.get(identity or self.agent)
+        if not key:
+            raise ValueError('provision and configure a credential for this test caller before running scenarios')
+        return {'X-API-Key': key}
+
+    def api(self, method, path, payload=None, expected_http=200, headers=None, agent=None):
+        authenticated_headers = self.auth_headers(path, payload, agent=agent)
+        authenticated_headers.update(headers or {})
         with httpx.Client(timeout=90) as client:
-            response = client.request(method, self.base_url + "/api/v1" + path, json=payload)
+            response, operation_id, accepted = request_and_wait(
+                client, method, self.base_url + "/api/v1" + path,
+                json=payload, headers=authenticated_headers, timeout_seconds=1800)
         try:
             body = response.json()
         except ValueError:
             body = {"detail": "non-JSON response", "body_omitted": True}
-        self.log(method + " " + path, {"http_status": response.status_code, "body": body})
+        self.log(method + " " + path, {"http_status": response.status_code, "body": body,
+                  "operation_id": operation_id,
+                  "accepted_http_status": accepted.status_code if accepted else None})
         self.check("expected HTTP status", response.status_code == expected_http,
                    {"expected": expected_http, "actual": response.status_code})
         return body
@@ -296,9 +322,13 @@ class OnlineSession:
         self.check("earned ASSISTED state", state["mode"] == "ASSISTED" and state["streak"] == n, state)
         return results
 
-    def promote_agent(self, agent=None, action="create_file", approve=True, expected=True):
+    def promote_agent(self, agent=None, action="create_file", approve=True, expected=True,
+                      idempotency_key=None):
+        key = idempotency_key if idempotency_key is not None else str(uuid4())
+        self.log("agent promotion idempotency key", {"key": key})
         result = self.api("POST", "/control/promote-agent", {"agent_id": agent or self.agent,
-            "action_class": action, "reviewer_id": self.reviewer, "approve": approve})
+            "action_class": action, "reviewer_id": self.reviewer, "approve": approve},
+            headers={"Idempotency-Key": key})
         self.check("expected agent promotion result", result["promoted"] is expected, result)
         return result
 
@@ -330,7 +360,17 @@ class OnlineSession:
                    and package["reviewer_id"] == self.reviewer
                    and package["package_json"].get("review_note") == "Online E2E test reviewer response")
         self.log("reviewed package", package)
+        agent_status = self.api('GET', '/actions/reviews/' + decision_id,
+                                agent=response['action_request']['agent_id'])
         if approve:
+            self.check('reviewer response contains no execution capability', result.get('capability_token') is None
+                       and result['evaluation'].get('capability_token') is None)
+            self.check('agent discovers authorization using original decision ID',
+                       agent_status['status'] == ('APPROVED_ALLOWED' if result['authorization_status'] == 'ALLOWED'
+                                                  else 'APPROVED_BLOCKED')
+                       and agent_status['authorization_decision_id'] == result['authorization_decision_id'])
+            result['evaluation'] = agent_status['evaluation']
+            result['capability_token'] = result['evaluation'].get('capability_token')
             self.check("approval creates linked authorization decision without policy bump",
                        result["authorization_status"] in {"ALLOWED", "BLOCKED"}
                        and result["evaluation"]["decision_id"] != decision_id
@@ -340,6 +380,9 @@ class OnlineSession:
             if expected:
                 self.check("reviewed decision", result["evaluation"]["decision"] == expected)
         else:
+            self.check('agent discovers rejection using original decision ID',
+                       agent_status['status'] == 'REJECTED' and agent_status['evaluation'] is None
+                       and agent_status['authorization_decision_id'] is None)
             self.check("rejection creates no evaluation/version", result["evaluation"] is None
                        and result["new_policy_version"] is None
                        and result["authorization_status"] == "NOT_REQUESTED")
@@ -399,11 +442,13 @@ class OnlineSession:
         execution_before = self.execution_state(response)
         gate = Barrier(2)
         def submit(approve):
+            payload = {"decision_id": decision_id, "reviewer_id": self.reviewer + ("_approve" if approve else "_reject"),
+                       "approve": approve, "note": "Concurrent synthetic review", "package_fingerprint": package["package_fingerprint"]}
+            headers = self.auth_headers('/control/approve/' + decision_id, payload)
             gate.wait(timeout=10)
             with httpx.Client(timeout=90) as client:
-                result = client.post(self.base_url + "/api/v1/control/approve/" + decision_id, json={
-                    "decision_id": decision_id, "reviewer_id": self.reviewer + ("_approve" if approve else "_reject"),
-                    "approve": approve, "note": "Concurrent synthetic review", "package_fingerprint": package["package_fingerprint"]})
+                result = client.post(self.base_url + "/api/v1/control/approve/" + decision_id,
+                                     json=payload, headers=headers)
                 return result.status_code, result.json()
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [pool.submit(submit, approve) for approve in (True, False)]
@@ -427,7 +472,8 @@ class OnlineSession:
     def execute(self, response, expected="EXECUTED"):
         before = self.execution_state(response)
         result = self.api("POST", "/actions/execute", {
-            "decision_id": response["decision_id"], "token": response["capability_token"]})
+            "decision_id": response["decision_id"], "token": response["capability_token"]},
+            headers={"Idempotency-Key": str(uuid4())})
         self.check("expected execution result", result["status"] == expected, result)
         after = self.execution_state(response)
         if expected == "REJECTED":

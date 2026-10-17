@@ -11,13 +11,29 @@ from src.services.decision_ledger import save_policy_record
 
 
 def evaluate_action(session: Session, request: ActionRequest, *,
-                    review_approval: dict | None = None, compensation: dict | None = None) -> EvaluationResponse:
+                    review_approval: dict | None = None, compensation: dict | None = None,
+                    evidence: dict | None = None) -> EvaluationResponse:
     analysis = request._semantic_analysis
     request = ActionRequest.model_validate(request)
     request._semantic_analysis = analysis
+    # External evidence must be collected before the first DB access.
+    if evidence is None:
+        from src.config import settings
+        if not settings.OFFLINE_MODE or settings.SEMANTIC_PIPELINE_MODE != 'baseline':
+            if session.in_transaction():
+                raise RuntimeError('collect evidence outside the transaction before policy finalization')
+            from src.db.transaction_guard import assert_no_transaction
+            assert_no_transaction()
+        evidence = build_evidence(request)
+    from copy import deepcopy
+    evidence = deepcopy(evidence)
+    # Consistent lock order with human finalization: active policy, then autonomy.
+    from src.services.policy_store import active
+    active(session)
     with monitoring.span("autonomy_lookup"):
         state = autonomy_service.get(session, request.agent_id, request.action_class)
-    evidence = build_evidence(request, state)
+    from src.services.advisory_evidence import autonomy_snapshot
+    evidence["autonomy_snapshot"] = autonomy_snapshot(request, state)
     if review_approval is not None:
         evidence["review_approval"] = review_approval
     if compensation is not None:

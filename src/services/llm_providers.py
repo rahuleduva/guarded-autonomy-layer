@@ -73,6 +73,8 @@ class LangChainStructuredParser:
         raise ValueError(f"unsupported chat provider: {self.provider}")
 
     def invoke(self, messages):
+        from src.db.transaction_guard import assert_no_transaction
+        assert_no_transaction()
         try:
             model = self._chat_model()
             structured = model.with_structured_output(self.schema, include_raw=True)

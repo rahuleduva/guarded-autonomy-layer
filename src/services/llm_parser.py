@@ -322,6 +322,8 @@ def _adapt_provider_action(value: Any) -> ParsedAction:
 
 
 def parse(source: NaturalLanguageRequest) -> ActionRequest:
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     if not source.raw_prompt.strip() or len(source.raw_prompt) > 8192:
         raise ParserRejectionError("prompt must contain 1-8192 characters")
     _preflight(source.raw_prompt)
@@ -450,7 +452,7 @@ def parse(source: NaturalLanguageRequest) -> ActionRequest:
                         exc, (ValidationError, CorrectableParserError, UnverifiedActionError)
                     ) else "internal"
                 ),
-                on_attempt=lambda attempt, status, error, duration_ms, validation_errors, trace: monitoring.record(
+                on_attempt=lambda attempt, status, error, duration_ms, validation_errors, trace: monitoring.record_attempt(
                     "parser_agent_attempt", status,
                     duration_ms=duration_ms, provider=parser.last_profile.provider,
                     model=parser.last_profile.model,

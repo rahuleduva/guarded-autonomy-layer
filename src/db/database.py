@@ -4,6 +4,7 @@ from sqlmodel import create_engine, Session
 from sqlalchemy import event
 from sqlalchemy.engine import make_url
 from src.config import settings
+from src.db import transaction_guard  # register guards before any Session begins
 
 database_url = make_url(settings.DATABASE_URL)
 is_sqlite = database_url.get_backend_name() == "sqlite"

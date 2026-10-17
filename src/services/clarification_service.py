@@ -30,40 +30,30 @@ def validate_history(session, row):
 
 
 def resume(session, interpretation_id: str, answer: ClarificationAnswer, evaluate):
-    answer = ClarificationAnswer.model_validate(answer)
-    def reject(status, message):
-        monitoring.record('clarification_rejected', 'rejected', http_status=status,
-                          validation_errors={'non_field_errors': [{'code': f'HTTP_{status}', 'message': message}]},
-                          parser_trace={'interpretation_id': interpretation_id,
-                                        'answer': answer.model_dump(mode='json')})
-        raise HTTPException(status, message)
-    # Serialize updates and reject duplicate/stale answers before any model call.
-    row = session.exec(select(RequestInterpretation).where(
-        RequestInterpretation.interpretation_id == interpretation_id).with_for_update()).first()
-    if row is None:
-        reject(404, 'clarification request not found')
-    validate_history(session, row)
-    if (row.agent_id, row.actor_role) != (answer.agent_id, answer.actor_role):
-        reject(403, 'caller identity differs from the original request')
-    if row.status not in {InterpretationStatus.NEEDS_CLARIFICATION, InterpretationStatus.PROVIDER_FAILED}:
-        reject(409, 'this interpretation is already closed')
-    if row.revision != answer.revision:
-        reject(409, 'stale clarification revision')
-    row.revision += 1
-    return submit(session, NaturalLanguageRequest(
-        agent_id=row.agent_id, actor_role=row.actor_role, raw_prompt=answer.clarified_prompt,
-    ), evaluate, row=row)
+    raise ValueError('clarification requires a durable reservation; use workflow_flows.interpret')
 
 
-def submit(session, request: NaturalLanguageRequest, evaluate, *, row=None):
+def submit(session, request: NaturalLanguageRequest, evaluate, *, row=None, finalize_action=evaluate_action, parser_is_frozen=False):
     request = NaturalLanguageRequest.model_validate(request)
+    if session.in_transaction() and not parser_is_frozen:
+        raise RuntimeError('live parsing must run outside a database transaction')
+    reservation = None
     if row is None:
         row = RequestInterpretation(agent_id=request.agent_id, actor_role=request.actor_role,
                                     original_prompt=request.raw_prompt,
                                     status=InterpretationStatus.NEEDS_CLARIFICATION)
+    elif row.status == InterpretationStatus.PROCESSING.value:
+        # The reservation is durable; replace its placeholder with the completed
+        # turn in the same transaction as its linked decision.
+        if not row.turns or row.turns[-1]['status'] != InterpretationStatus.PROCESSING.value:
+            raise ValueError('processing interpretation has no reserved turn')
+        reservation = row.turns[-1]
+        row.turns = row.turns[:-1]
     turn = {'revision': row.revision, 'request_id': request.request_id, 'prompt': request.raw_prompt,
             'correlation_id': monitoring.current_attempt_id(),
             'submitted_at': datetime.now(timezone.utc).isoformat()}
+    if reservation is not None:
+        turn.update(submitted_at=reservation['submitted_at'], correlation_id=reservation.get('correlation_id'))
     response = None
     try:
         parsed = evaluate(request)
@@ -124,7 +114,7 @@ def submit(session, request: NaturalLanguageRequest, evaluate, *, row=None):
         raise RuntimeError('request interpretation could not be completed') from exc
     else:
         # Policy failures must roll back; they are never parser rejections.
-        response = evaluate_action(session, parsed)
+        response = finalize_action(session, parsed)
         response.interpretation_id = row.interpretation_id
         row.status = InterpretationStatus.EVALUATED
         row.questions = []

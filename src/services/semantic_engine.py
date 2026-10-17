@@ -134,6 +134,8 @@ def _cloud_client():
 
 def _query_qdrant(request: ActionRequest) -> list[dict[str, Any]]:
     """Retrieve both labels within this operation and cross-operation risks."""
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     from qdrant_client import models
 
     corpus = load_corpus()
@@ -218,6 +220,9 @@ def classify(candidates: list[dict], threshold: float, required_margin: float) -
 
 def assess(request: ActionRequest) -> SemanticAssessment:
     """Return frozen similarity evidence; unavailable online evidence needs review."""
+    if not settings.OFFLINE_MODE:
+        from src.db.transaction_guard import assert_no_transaction
+        assert_no_transaction()
     threshold = settings.SEMANTIC_THRESHOLD
     if not math.isfinite(threshold) or not 0 < threshold <= 1:
         raise ValueError("SEMANTIC_THRESHOLD must be in (0, 1]")

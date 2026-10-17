@@ -1,0 +1,33 @@
+{
+  "run_id": "20261016T191139Z_d31fc7ac",
+  "created_at": "2026-10-16T19:11:39.582702+00:00",
+  "execution_endpoint_called": false,
+  "cases": [
+    {
+      "case": "operation_roundtrip",
+      "passed": true,
+      "evidence": {
+        "operation_id": "dd5c874e9c12861530f1d4ee03f8b2993ddea7d5a92400f32b5673ae0401eb29",
+        "decision_id": "ae267cfe-a941-428c-881d-9693e892023b",
+        "request_id": "f3dcaeec-1112-4153-983e-d6e98cdf29c0",
+        "accepted_status": 202,
+        "result_status": 200
+      }
+    },
+    {
+      "case": "duplicate_submission",
+      "passed": true,
+      "evidence": {
+        "operation_id": "bd06e94da0514138830f628018d4f28ab9a7c4af6eba1de04c3e230b9ab0839e",
+        "decision_id": "563d0d71-477f-4f73-a035-0a8020d917ac",
+        "request_id": "666edea0-bd18-488b-90fc-52533f527708",
+        "submission_statuses": [
+          202,
+          202
+        ],
+        "decision_rows": 1
+      }
+    }
+  ],
+  "passed": true
+}

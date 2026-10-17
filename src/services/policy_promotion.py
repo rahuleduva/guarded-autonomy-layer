@@ -6,7 +6,7 @@ from src.models.enums import DecisionStage
 from src.models.policy import Policy
 from src.models.policy_shadow import ShadowRecord
 from src.models.runtime import PolicyPromotionEvent
-from src.services.policy_store import activate
+from src.services.policy_store import activate, active
 
 _CLEAN = {"SHADOW_LOGGED", "PENDING_APPROVAL", "ALLOWED"}
 
@@ -36,6 +36,9 @@ def promote_candidate(session: Session, candidate_policy_hash: str,
                       reviewer_id: str, approved: bool) -> bool:
     if not reviewer_id.strip() or not isinstance(approved, bool):
         raise ValueError("reviewer ID and boolean approved are required")
+    # Match evaluation/finalization lock order. Locking the candidate first can
+    # deadlock with an evaluation inserting its candidate shadow audit.
+    active(session)
     candidate = session.exec(select(Policy).where(
         Policy.policy_hash == candidate_policy_hash).with_for_update()).one_or_none()
     if candidate is None:

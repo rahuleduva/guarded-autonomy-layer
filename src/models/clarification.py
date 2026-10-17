@@ -13,6 +13,8 @@ from pydantic import Field as ContractField, model_validator
 
 
 class InterpretationStatus(str, Enum):
+    PROCESSING = 'processing'
+    PROCESSING_FAILED = 'processing_failed'
     NEEDS_CLARIFICATION = 'needs_clarification'
     EVALUATED = 'evaluated'
     REJECTED = 'rejected'
@@ -39,6 +41,10 @@ class InterpretationTurn(ValidatedContract):
 
     @model_validator(mode="after")
     def validate_turn_state(self):
+        if self.status == InterpretationStatus.PROCESSING and any(value is not None for value in (
+                self.error_type, self.error_message, self.validation_errors,
+                self.parser_attempts, self.correction_message)):
+            raise ValueError('a processing turn cannot claim a completed parser failure')
         if any(not question.strip() for question in self.questions):
             raise ValueError("clarification questions must not be blank")
         if self.status == InterpretationStatus.NEEDS_CLARIFICATION:
@@ -60,7 +66,7 @@ class InterpretationTurn(ValidatedContract):
                 raise ValueError("a parser rejection must not claim an executable action")
         elif self.decision_id is not None or self.decision_stage is not None or self.action_request is not None:
             raise ValueError("clarification and provider failures are not terminal decisions")
-        if self.status == InterpretationStatus.PROVIDER_FAILED and not self.error_type:
+        if self.status in {InterpretationStatus.PROVIDER_FAILED, InterpretationStatus.PROCESSING_FAILED} and not self.error_type:
             raise ValueError("a provider failure requires its error type")
         return self
 
@@ -84,7 +90,7 @@ class InterpretationWrite(ValidatedContract):
             raise ValueError("the original instruction must match the first saved turn")
         if [turn.revision for turn in self.turns] != list(range(1, self.revision + 1)):
             raise ValueError("clarification history must contain every revision exactly once")
-        if any(turn.status not in {InterpretationStatus.NEEDS_CLARIFICATION, InterpretationStatus.PROVIDER_FAILED}
+        if any(turn.status not in {InterpretationStatus.NEEDS_CLARIFICATION, InterpretationStatus.PROVIDER_FAILED, InterpretationStatus.PROCESSING_FAILED}
                for turn in self.turns[:-1]):
             raise ValueError("a closed interpretation cannot have further turns")
         latest = self.turns[-1]

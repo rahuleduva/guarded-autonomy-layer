@@ -100,6 +100,30 @@ class EvaluationResponse(ValidatedContract):
         return self
 
 
+class AgentReviewStatus(ValidatedContract):
+    """Agent-visible review progress, addressed by the original decision ID."""
+
+    original_decision_id: str
+    status: Literal['PREPARING', 'AWAITING_REVIEW', 'REJECTED', 'APPROVED_BLOCKED', 'APPROVED_ALLOWED']
+    reason: str
+    authorization_decision_id: str | None = None
+    evaluation: EvaluationResponse | None = None
+
+    @model_validator(mode='after')
+    def consistent_review_status(self):
+        approved = self.status in {'APPROVED_ALLOWED', 'APPROVED_BLOCKED'}
+        if approved:
+            if self.evaluation is None or self.authorization_decision_id != self.evaluation.decision_id:
+                raise ValueError('approved review requires its linked authorization evaluation')
+            if (self.evaluation.decision == DecisionOutcome.ALLOWED) != (self.status == 'APPROVED_ALLOWED'):
+                raise ValueError('review status differs from authorization outcome')
+            if self.status == 'APPROVED_ALLOWED' and not self.evaluation.capability_token:
+                raise ValueError('allowed review requires its original capability')
+        elif self.authorization_decision_id is not None or self.evaluation is not None:
+            raise ValueError('unapproved review cannot return authorization')
+        return self
+
+
 class EscalationPackage(ValidatedContract):
     """What a human reviewer sees; persisted as package_json (C.3)."""
 
@@ -129,7 +153,10 @@ class EscalationPackage(ValidatedContract):
         if self.semantic_findings:
             from src.services.semantic_pipeline import validate_pipeline
             validate_pipeline(self.semantic_findings)
-        if self.status == EscalationStatus.PENDING:
+        if self.status == EscalationStatus.PREPARING and (
+                self.package_fingerprint is not None or self.explanation is not None or self.review_requirements):
+            raise ValueError('a preparing escalation cannot claim a completed explanation')
+        if self.status in {EscalationStatus.PENDING, EscalationStatus.PREPARING}:
             if self.reviewer_id is not None or self.decided_at is not None or self.review_note is not None:
                 raise ValueError("a pending escalation cannot claim a reviewer decision")
         elif self.reviewer_id is None or self.decided_at is None:
@@ -213,7 +240,10 @@ class ExecutionResult(BaseModel):
 
 class RollbackResult(BaseModel):
     execution_id: str
-    status: str = Field(..., description="COMPENSATED or FAILED")
+    status: Literal["COMPENSATED", "PENDING_APPROVAL", "FAILED"] = Field(
+        ..., description="COMPENSATED, pending human approval, or failed"
+    )
+    compensation_decision_id: Optional[str] = None
     restored_state: Dict[str, Any] = Field(default_factory=dict)
 
 

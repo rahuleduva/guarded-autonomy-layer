@@ -20,6 +20,9 @@ import src.models.runtime
 import src.models.monitoring
 import src.models.clarification
 import src.models.human_review
+import src.models.workflow
+import src.models.workflow_dispatch
+import src.models.auth
 # -------------------------
 
 # this is the Alembic Config object, which provides

@@ -18,6 +18,18 @@ Status: **prepared, not executed**. No connectivity, database state, or successf
 8. A timeout is an unknown outcome, not a proven rollback. Inspect the request ID, decision, review status, execution, and target resource before retrying. The commands persist request JSON before sending to make that inspection possible.
 9. No cleanup by deleting audit history, resetting streaks, mass-rejecting reviews, deleting Qdrant collections, or resetting active policies. The final report identifies test leftovers and policy pointer changes.
 
+## Authentication prerequisite
+
+The direct curl scenarios below predate caller authentication and must not be
+executed unchanged. Provision each agent and reviewer through
+[authentication.md](authentication.md), attach the matching `X-API-Key` to each
+request, and use the verified human principal as `reviewer_id`. Additional agent
+names require additional provisioned credentials. Human approval responses no
+longer return execution capabilities; retrieve the evaluation through
+`GET /api/v1/actions/authorizations/{authorization_decision_id}` as its owning
+agent before execution. The updated interactive helper handles credential maps
+and this retrieval; prefer it until these individual curl steps are revised.
+
 ## A. Prepare the terminal and shared read-only inspection commands
 
 ### A1. Enter the correct shell and virtual environment
@@ -483,6 +495,7 @@ cat > "$E2E_OUT/S00-request.json" <<JSON
 {"candidate_policy_hash":"${E2E_CANDIDATE}","reviewer_id":"${E2E_REVIEWER}","approve":true}
 JSON
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-policy" \
+  -H "Idempotency-Key: ${E2E_RUN_ID}-S00-policy" \
   -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S00-request.json" \
   -o "$E2E_OUT/S00-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -649,6 +662,7 @@ cat > "$E2E_OUT/S03-decline-request.json" <<JSON
 {"candidate_policy_hash":"${E2E_CANDIDATE}","reviewer_id":"${E2E_REVIEWER}","approve":false}
 JSON
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-policy" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S03-decline-policy" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S03-decline-request.json" \
  -o "$E2E_OUT/S03-decline-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -662,6 +676,7 @@ Expected: qualified evidence alone does not activate a policy; reviewer decline 
 ```bash
 jq '.approve=true' "$E2E_OUT/S03-decline-request.json" > "$E2E_OUT/S03-approve-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-policy" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S03-approve-policy" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S03-approve-request.json" \
  -o "$E2E_OUT/S03-approve-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -870,6 +885,7 @@ cat > "$E2E_OUT/S07-decline-request.json" <<JSON
 {"agent_id":"${E2E_MAIN_AGENT}","action_class":"create_file","reviewer_id":"${E2E_REVIEWER}","approve":false}
 JSON
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-agent" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S07-decline-agent" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S07-decline-request.json" \
  -o "$E2E_OUT/S07-decline-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -881,6 +897,7 @@ jq -e '.promoted==false and .autonomy_level=="ASSISTED"' "$E2E_OUT/S07-decline-r
 ```bash
 jq '.approve=true' "$E2E_OUT/S07-decline-request.json" > "$E2E_OUT/S07-approve-request.json"
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-agent" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S07-approve-agent" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S07-approve-request.json" \
  -o "$E2E_OUT/S07-approve-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -1011,6 +1028,7 @@ cat > "$E2E_OUT/S09-promotion-request.json" <<JSON
 {"agent_id":"${E2E_MAIN_AGENT}","action_class":"update_file","reviewer_id":"${E2E_REVIEWER}","approve":true}
 JSON
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-agent" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S09-promote-agent" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S09-promotion-request.json" \
  -o "$E2E_OUT/S09-promotion-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -1480,6 +1498,7 @@ cat > "$E2E_OUT/S17-promote-request.json" <<JSON
 {"agent_id":"${E2E_EARLY_AGENT}","action_class":"create_file","reviewer_id":"${E2E_REVIEWER}","approve":true}
 JSON
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-agent" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S17-promote-agent" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S17-promote-request.json" \
  -o "$E2E_OUT/S17-promote-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'
@@ -2057,6 +2076,7 @@ cat > "$E2E_OUT/S23-promote-request.json" <<JSON
 {"candidate_policy_hash":"${E2E_CANDIDATE_2}","reviewer_id":"${E2E_REVIEWER}","approve":true}
 JSON
 E2E_HTTP=$(curl --silent --show-error --max-time 90 -X POST "$E2E_BASE/api/v1/control/promote-policy" \
+ -H "Idempotency-Key: ${E2E_RUN_ID}-S23-promote-policy" \
  -H 'Content-Type: application/json' --data-binary @"$E2E_OUT/S23-promote-request.json" \
  -o "$E2E_OUT/S23-promote-response.json" -w '%{http_code}')
 test "$E2E_HTTP" = '200'

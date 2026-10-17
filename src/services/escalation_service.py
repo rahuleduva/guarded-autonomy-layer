@@ -25,23 +25,24 @@ class ReviewConflictError(Exception):
     """A review package is stale, already decided, or mismatched."""
 
 
-def _prepare_package(session: Session, package: EscalationPackage, decision: DecisionRecord) -> EscalationPackage:
-    evidence = deepcopy(decision.evidence_json or {})
-    policy = session.exec(select(Policy).where(Policy.policy_hash == decision.policy_hash)).one_or_none()
-    if policy is None:
-        raise ValueError("original review policy not found")
-    validate_stored(policy)
+def prepare_package(context: dict) -> EscalationPackage:
+    """Pure cloud phase: context contains detached JSON, never ORM objects."""
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
+    package = EscalationPackage.model_validate(context["package"])
+    evidence = context["evidence"]
     package = package.model_copy(update={
-        "original_policy_hash": decision.policy_hash,
-        "original_outcome": decision.outcome,
+        "original_policy_hash": context["policy_hash"],
+        "original_outcome": DecisionOutcome(context["outcome"]),
         "action_fingerprint": action_fingerprint(package.request),
         "package_version": "human-review-package-v1",
     })
-    requirements, explanation = explain(package, evidence, policy.rules_json)
+    requirements, explanation = explain(package, evidence, context["rules"])
     package = package.model_copy(update={
         "review_requirements": requirements,
         "explanation": explanation,
         "package_fingerprint": None,
+        "status": EscalationStatus.PENDING,
     })
     package = package.model_copy(update={"package_fingerprint": package_fingerprint(package)})
     return EscalationPackage.model_validate(package)
@@ -68,27 +69,36 @@ def raise_escalation(session: Session, decision_id: str) -> EscalationQueueItem:
         semantic_findings=decision.evidence_json.get("semantic_pipeline", {}),
         recommended_decision=f"Review before execution: {decision.reason}",
     )
-    package = _prepare_package(session, package, decision)
+    package = package.model_copy(update={"status": EscalationStatus.PREPARING})
     row = EscalationQueueItem(escalation_id=package.escalation_id, decision_id=decision_id,
-                              package_json=package.model_dump(mode="json"))
+                              package_json=package.model_dump(mode="json"),
+                              status=EscalationStatus.PREPARING.value)
     session.add(row)
     session.flush()
     return row
 
 
-def prepare_existing(session: Session, decision_id: str) -> EscalationPackage:
-    """Explicitly prepare a legacy pending package; reviewer must fetch it afterward."""
+def preparation_context(session: Session, decision_id: str) -> dict:
     row = session.exec(select(EscalationQueueItem).where(
         EscalationQueueItem.decision_id == decision_id).with_for_update()).one_or_none()
-    if row is None or row.status != EscalationStatus.PENDING.value:
-        raise ReviewConflictError("only a pending escalation can be prepared")
+    resumable_statuses = {
+        EscalationStatus.PREPARING.value,
+        EscalationStatus.PENDING.value,
+        EscalationStatus.APPROVED.value,
+        EscalationStatus.REJECTED.value,
+    }
+    if row is None or row.status not in resumable_statuses:
+        raise ReviewConflictError("escalation package is unavailable")
     decision = session.get(DecisionRecord, decision_id)
     if decision is None:
         raise ValueError("decision not found")
     validate_policy_record(decision)
     package = EscalationPackage.model_validate(row.package_json)
-    if package.package_fingerprint:
-        return package
+    if package.status.value != row.status:
+        raise ReviewConflictError("escalation status differs from its stored package")
+    if (row.status in {EscalationStatus.APPROVED.value, EscalationStatus.REJECTED.value}
+            and not package.package_fingerprint):
+        raise ReviewConflictError("a reviewed escalation has no completed review package")
     evidence = decision.evidence_json or {}
     if (package.decision_id != decision.decision_id
             or package.request.model_dump(mode="json") != decision.request_json
@@ -96,8 +106,46 @@ def prepare_existing(session: Session, decision_id: str) -> EscalationPackage:
             or package.semantic_warning != evidence.get("semantic_warning")
             or package.blast_radius != evidence.get("blast_radius", {})):
         raise ReviewConflictError("pending escalation does not match its original decision")
-    prepared = _prepare_package(session, package, decision)
-    row.package_json = prepared.model_dump(mode="json")
+    policy = session.exec(select(Policy).where(Policy.policy_hash == decision.policy_hash)).one_or_none()
+    if policy is None:
+        raise ValueError("original review policy not found")
+    validate_stored(policy)
+    # Legacy PENDING packages without explanations become explicitly unavailable
+    # to reviewers before leaving this transaction.
+    if not package.package_fingerprint:
+        row.status = EscalationStatus.PREPARING.value
+        package = package.model_copy(update={"status": EscalationStatus.PREPARING})
+        row.package_json = package.model_dump(mode="json")
+        session.add(row)
+    return deepcopy(dict(package=package.model_dump(mode="json"), evidence=evidence,
+                         policy_hash=decision.policy_hash, outcome=decision.outcome,
+                         rules=policy.rules_json))
+
+
+def prepare_existing(session: Session, decision_id: str, prepared: EscalationPackage) -> EscalationPackage:
+    """Database-only finalization of an explanation generated outside a transaction."""
+    context = preparation_context(session, decision_id)
+    current = EscalationPackage.model_validate(context['package'])
+    prepared = EscalationPackage.model_validate(prepared)
+    if current.package_fingerprint:
+        # A concurrent preparer may have finalized the package, and a reviewer
+        # may already have acted on it while this worker was generating text.
+        # Preserve the committed package as the authority and let this workflow
+        # finish from that durable state.
+        return current
+    expected = current.model_copy(update={
+        'status': EscalationStatus.PENDING, 'package_version': prepared.package_version,
+        'original_outcome': DecisionOutcome(context['outcome']), 'original_policy_hash': context['policy_hash'],
+        'action_fingerprint': action_fingerprint(current.request),
+        'review_requirements': prepared.review_requirements, 'explanation': prepared.explanation,
+        'package_fingerprint': None,
+    })
+    expected = expected.model_copy(update={'package_fingerprint': package_fingerprint(expected)})
+    if expected.model_dump(mode='json') != prepared.model_dump(mode='json'):
+        raise ReviewConflictError('prepared explanation no longer matches the stored package')
+    row = session.exec(select(EscalationQueueItem).where(
+        EscalationQueueItem.decision_id == decision_id)).one()
+    row.status, row.package_json = EscalationStatus.PENDING.value, prepared.model_dump(mode='json')
     session.add(row)
     session.flush()
     return prepared

@@ -101,6 +101,8 @@ do not mark an unknown resolved, suppress a risk, or invent evidence just to pas
 
 
 def judge(source, analysis, retrieval):
+    from src.db.transaction_guard import assert_no_transaction
+    assert_no_transaction()
     provider, model = provider_info('JUDGE')
     envelope = dict(version=VERSION, provider=provider, model=model,
         prompt_hash=hashlib.sha256(SYSTEM.encode()).hexdigest(),
@@ -131,7 +133,7 @@ def judge(source, analysis, retrieval):
                 stage = 'judge_primary' if profile.name == first_profile.name else 'judge_fallback'
             else:
                 stage = 'judge_correction'
-            monitoring.record(stage, status, duration_ms=duration_ms,
+            monitoring.record_attempt(stage, status, duration_ms=duration_ms,
                               provider=profile.provider, model=profile.model,
                               error_type=type(exc).__name__ if exc else None,
                               http_status=http_status(exc) if exc else None,

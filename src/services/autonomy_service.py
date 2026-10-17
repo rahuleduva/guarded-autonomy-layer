@@ -157,6 +157,10 @@ def promote_to_live(
     if state is None:
         raise ValueError('LIVE promotion requires an existing ASSISTED state')
     runs = _clean_runs(session, agent_id, action_class)
+    # Refresh the cached counter even when promotion is declined or unqualified.
+    # Only ledger-backed runs may contribute to this state.
+    state.streak = len(runs)
+    session.add(state)
     promoted = approved and state.mode == AutonomyLevel.ASSISTED.value and len(runs) >= threshold
     if not approved:
         reason = "reviewer declined LIVE promotion"
