@@ -76,6 +76,12 @@ class PolicyDecisionWrite(DecisionWriteBase):
     def validate_policy_fields(self):
         from src.services.semantic_pipeline import verify_frozen
         verify_frozen(self.evidence_json)
+        unsupported = self.evidence_json.get('unsupported_action')
+        if unsupported is not None:
+            from src.models.semantic import UnsupportedActionEvidence
+            refusal = UnsupportedActionEvidence.model_validate(unsupported)
+            if refusal.action_class != self.action_class or self.outcome != DecisionOutcome.DENIED:
+                raise ValueError('unsupported runtime action must record the matching DENIED decision')
         for field in ("action_class", "target_resource"):
             if getattr(self, field) != getattr(self.request_json, field):
                 raise ValueError(f"decision {field} differs from its recorded action")

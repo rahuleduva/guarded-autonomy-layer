@@ -78,8 +78,6 @@ def _grounding_rejection(exc):
                 'target path was not specified in the request',
                 'empty file content must be explicitly requested',
             })
-        if isinstance(current, llm_parser.CorrectableParserError):
-            return str(current) == 'a single action requires a grounded executable action'
         # Follow explicit wrappers, not unrelated error-handling contexts.
         current = current.__cause__
     return False
@@ -149,7 +147,30 @@ def _counts(rows, *, total=None):
         flag_matches=sum(r.get('flag_match') is True for r in rows))
 
 
-def run(*, held_out=False, case_id=None, suite=None, max_consecutive_analysis_failures=3):
+def _score_semantics(row, case):
+    """Score the primary pipeline independently of optional diagnostic arms."""
+    combined = row['arms']['both']
+    if combined.get('judgment', {}).get('status') != 'applied':
+        row['status'] = 'semantic_unavailable'
+        return
+    row['status'] = 'assessed'
+    expected = {r.category.value for r in case.risk_aspects if r.assessment == 'applies'}
+    findings = combined['judgment']['result']['findings']
+    actual = {r['category'] for r in findings if r['assessment'] == 'applies'}
+    row['missed_risks'] = sorted(expected - actual)
+    row['additional_risks'] = sorted(actual - expected)
+    row['expected_findings'] = [r.model_dump(mode='json') for r in case.risk_aspects]
+    got = {r['category']: r['assessment'] for r in findings}
+    row['finding_matches'] = {r.category.value: got.get(r.category.value) == r.assessment
+                              for r in case.risk_aspects}
+    row['flag_match'] = combined['proposed_flag'] == case.expected_semantic_flag
+    row['retrieval_coverage'] = {risk: any(risk in c['risk_aspects'] and any(
+        f['category'] == risk and f['assessment'] == 'applies' for f in c['findings'])
+        for c in combined['retrieval'].get('candidates', [])) for risk in expected}
+
+
+def run(*, held_out=False, case_id=None, suite=None, max_consecutive_analysis_failures=3,
+        on_case=None, completed_rows=None):
     if settings.OFFLINE_MODE:
         raise ValueError('semantic evaluation requires online providers')
     if suite and held_out:
@@ -170,9 +191,20 @@ def run(*, held_out=False, case_id=None, suite=None, max_consecutive_analysis_fa
         else ('legacy-held-out' if held_out else 'legacy-corpus')
         for case in selected
     }
+    completed = {row['id']: json.loads(json.dumps(row)) for row in (completed_rows or [])}
+    if len(completed) != len(completed_rows or []):
+        raise ValueError('duplicate completed case IDs')
+    if set(completed) - {case.id for case in selected}:
+        raise ValueError('completed case IDs outside selected dataset')
     consecutive_analysis_failures=0
     stopped_early=False
     for case in selected:
+        if case.id in completed:
+            row = completed[case.id]
+            rows.append(row)
+            if on_case is not None:
+                on_case(json.loads(json.dumps(row)))
+            continue
         started=time.monotonic()
         # Only the instruction is sent. No risk labels, reasons or expected actions.
         previous=settings.SEMANTIC_PIPELINE_MODE
@@ -244,40 +276,42 @@ def run(*, held_out=False, case_id=None, suite=None, max_consecutive_analysis_fa
                 row['arms']['both']=combined
                 # This diagnostic arm intentionally has no decision threshold.
                 row['arms']['expanded_retrieval_only']=combined['retrieval']
-                from src.services import semantic_judge
-                canonical=dict(baseline, candidates=[dict(example_id=c.get('example_id') or c['reference'],
-                    instruction=c.get('text',''), label=c['label'],
-                    risk_aspects=[] if c['risk_category']=='none' else [c['risk_category']],
-                    score=c['score']) for c in baseline['candidates']], coverage_gaps=[])
-                judgment=semantic_judge.judge(request_analysis.source_text(request),analysis,canonical)
-                flag,warning=semantic_pipeline.aggregate(analysis,canonical,judgment)
-                row['arms']['judge_original_retrieval']=dict(retrieval=canonical,judgment=judgment,
-                    proposed_flag=flag,proposed_warning=warning)
-                row['status']='assessed'
-                expected={r.category.value for r in case.risk_aspects if r.assessment=='applies'}
-                actual={r['category'] for r in combined.get('judgment',{}).get('result',{}).get('findings',[]) if r['assessment']=='applies'}
-                row['missed_risks']=sorted(expected-actual)
-                row['additional_risks']=sorted(actual-expected)
-                row['expected_findings']=[r.model_dump(mode='json') for r in case.risk_aspects]
-                got={r['category']:r['assessment'] for r in combined.get('judgment',{}).get('result',{}).get('findings',[])}
-                row['finding_matches']={r.category.value:got.get(r.category.value)==r.assessment for r in case.risk_aspects}
-                row['flag_match']=combined['proposed_flag']==case.expected_semantic_flag
-                row['retrieval_coverage']={risk:any(risk in c['risk_aspects'] and any(f['category']==risk and f['assessment']=='applies' for f in c['findings'])
-                    for c in combined['retrieval'].get('candidates',[])) for risk in expected}
-                if combined.get('judgment', {}).get('status') != 'applied':
-                    row['status'] = 'semantic_unavailable'
-                    for field in ('missed_risks', 'additional_risks', 'finding_matches', 'flag_match'):
-                        row.pop(field, None)
+                _score_semantics(row, case)
+                try:
+                    from src.services import semantic_judge
+                    canonical=dict(baseline, candidates=[dict(example_id=c.get('example_id') or c['reference'],
+                        instruction=c.get('text',''), label=c['label'],
+                        risk_aspects=[] if c['risk_category']=='none' else [c['risk_category']],
+                        score=c['score']) for c in baseline['candidates']], coverage_gaps=[])
+                    judgment=semantic_judge.judge(request_analysis.source_text(request),analysis,canonical)
+                    # Legacy baseline evidence has no v2 query/payload provenance.
+                    # Keep this explicitly legacy diagnostic out of v2 validation.
+                    flag,warning=semantic_pipeline.aggregate_v1(analysis,canonical,judgment)
+                    row['arms']['judge_original_retrieval']=dict(
+                        aggregation_version='risk-union-v1', retrieval=canonical,judgment=judgment,
+                        proposed_flag=flag,proposed_warning=warning)
+                except Exception as exc:
+                    row['arms']['judge_original_retrieval'] = dict(
+                        status='unavailable', error=type(exc).__name__,
+                        error_chain=_safe_error_details(exc))
             except Exception as exc:
                 row['status']='parse_or_evaluation_unavailable'
                 row['error']=type(exc).__name__
         row['elapsed_seconds']=round(time.monotonic()-started,3)
         rows.append(row)
+        if on_case is not None:
+            # Reporting failure stops the run; never silently lose live evidence.
+            # Give reporters a detached JSON value so they cannot affect scoring.
+            on_case(json.loads(json.dumps(row)))
         if consecutive_analysis_failures >= max_consecutive_analysis_failures:
             stopped_early=True
             break
         # Sequential requests; no bursts or repeated retry loops.
         time.sleep(.25)
+    return _report(dataset, selected, rows, source_by_id, suite, held_out, stopped_early)
+
+
+def _report(dataset, selected, rows, source_by_id, suite, held_out, stopped_early):
     assessed=[r for r in rows if r['status']=='assessed']
     category_counts={}
     for row in assessed:
@@ -292,6 +326,9 @@ def run(*, held_out=False, case_id=None, suite=None, max_consecutive_analysis_fa
         counts={'assessed':0,'risky_not_flagged':0,'benign_flagged':0,'uncertain_not_flagged':0,'unavailable':0}
         for row in assessed:
             arm=row['arms'].get(name,{})
+            if name != 'baseline' and arm.get('judgment', {}).get('status') != 'applied':
+                counts['unavailable'] += 1
+                continue
             flag=arm.get('flag') if name=='baseline' else arm.get('proposed_flag')
             if flag is None: counts['unavailable']+=1; continue
             counts['assessed']+=1
@@ -313,3 +350,45 @@ def run(*, held_out=False, case_id=None, suite=None, max_consecutive_analysis_fa
                                      total=sum(value==source for value in source_by_id.values()))
                        for source in sorted(set(source_by_id.values()))},
         counts=_counts(rows, total=len(selected)), cases=rows)
+
+
+def recover_primary_scores(original):
+    """Re-score preserved primary evidence after the legacy diagnostic bug.
+
+    No provider/retrieval calls occur. Reject changed datasets and validate every
+    recovered pipeline using the same frozen-evidence validators as replay.
+    """
+    import copy
+    import hashlib
+    dataset, expectations = load_suite(original['suite'])
+    if dataset.fingerprint != original['dataset_hash']:
+        raise ValueError('cannot recover scores against a different dataset')
+    rows = copy.deepcopy(original['cases'])
+    by_id = {case.id: case for case in dataset.cases}
+    if len({row['id'] for row in rows}) != len(rows) or any(row['id'] not in by_id for row in rows):
+        raise ValueError('invalid saved case identities')
+    recovered = []
+    for row in rows:
+        combined = row['arms'].get('both')
+        if row['status'] == 'parse_or_evaluation_unavailable' and combined is not None:
+            semantic_pipeline.validate_pipeline(dict(combined, baseline=row['arms']['baseline']))
+            row['original_evaluation_status'] = row['status']
+            row['arms']['judge_original_retrieval'] = {
+                'status': 'unavailable', 'error': row.get('error'),
+                'note': 'Legacy comparison failed; its model response was not preserved. No calls were rerun.'}
+            _score_semantics(row, by_id[row['id']])
+            recovered.append(row['id'])
+    selected = [by_id[ident] for ident in [row['id'] for row in rows]
+                + original.get('unattempted_case_ids', [])]
+    source_by_id = {case.id: expectations[case.id].get('source_suite', original['suite'])
+                    for case in selected}
+    result = _report(dataset, selected, rows, source_by_id, original['suite'], False,
+                     original['stopped_early'])
+    result['created_at'] = original['created_at']
+    result['score_recovery'] = {
+        'rescored_at': datetime.now(timezone.utc).isoformat(),
+        'original_report_sha256': hashlib.sha256(json.dumps(
+            original, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+        'recovered_case_ids': recovered, 'provider_calls': 0,
+        'reason': 'Optional legacy comparison failed after primary evidence had been saved.'}
+    return result

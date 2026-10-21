@@ -1,0 +1,6 @@
+{
+  "identities_verified": true,
+  "limitation": "API does not expose configuration fingerprints; local config is not proof of worker/API settings",
+  "process_settings_verified": false,
+  "routes_verified": true
+}

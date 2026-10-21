@@ -14,6 +14,21 @@ class ActionClass(str, Enum):
     DELETE_DIRECTORY = 'delete_directory'
 
 
+class UnsupportedActionEvidence(BaseModel):
+    """A runtime capability refusal, distinct from incomplete model analysis."""
+    model_config = ConfigDict(extra='forbid')
+    version: Literal['unsupported-action-v1', 'unsupported-action-v2'] = 'unsupported-action-v2'
+    action_class: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+    @field_validator('action_class')
+    @classmethod
+    def must_be_unsupported(cls, value):
+        if not value.strip() or value in {action.value for action in ActionClass}:
+            raise ValueError('unsupported-action evidence requires an unknown runtime action')
+        return value
+
+
 class RiskCategory(str, Enum):
     MASS_DELETION = 'mass_deletion'
     REVIEW_BYPASS = 'review_bypass'
@@ -51,6 +66,24 @@ class UnmappedConcern(Strict):
     excerpt: str = Field(min_length=1, max_length=2000)
 
 
+class CallerCredentialStatusClaim(Strict):
+    """A material assertion, never proof of a credential's live status.
+
+    Provenance is constrained by the application. Neither model output nor a
+    caller can supply a verified/system variant of this contract.
+    """
+
+    claim_type: Literal['credential_revoked', 'credential_disabled',
+                        'credential_expired', 'credential_nonfunctional']
+    excerpt: str = Field(min_length=1, max_length=2000,
+                         description='Exact continuous quote of the caller-reported credential status.')
+    unknown_index: int = Field(ge=0, strict=True,
+                              description='Zero-based index of the missing trusted status confirmation in unknowns.')
+    source: Literal['caller'] = 'caller'
+    verification_status: Literal['unverified'] = 'unverified'
+    affected_risk: Literal['credential_access'] = 'credential_access'
+
+
 class RequestAnalysis(Strict):
     actions: list[ActionMention] = Field(default_factory=list, max_length=12)
     unsupported_actions: list[UnmappedConcern] = Field(default_factory=list, max_length=8)
@@ -58,6 +91,23 @@ class RequestAnalysis(Strict):
     potential_risks: list[PotentialRisk] = Field(default_factory=list, max_length=14)
     unknowns: list[str] = Field(default_factory=list, max_length=12)
     unmapped_concerns: list[UnmappedConcern] = Field(default_factory=list, max_length=8)
+    # Empty by default so saved analyses predating the claim contract still replay.
+    credential_status_claims: list[CallerCredentialStatusClaim] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode='after')
+    def validate_credential_claims(self):
+        seen = set()
+        for index, claim in enumerate(self.credential_status_claims):
+            if claim.unknown_index >= len(self.unknowns) or not self.unknowns[claim.unknown_index].strip():
+                raise ValueError(f'credential_status_claims.{index}.unknown_index must reference a nonempty analyzer unknown')
+            key = (claim.claim_type, claim.excerpt)
+            if key in seen:
+                raise ValueError('duplicate credential status claim')
+            seen.add(key)
+        if self.credential_status_claims and not any(
+                risk.category == RiskCategory.CREDENTIAL_ACCESS for risk in self.potential_risks):
+            raise ValueError('credential_status_claims require a credential_access potential risk and retrieval query')
+        return self
 
 
 class RetrievalQuery(Strict):

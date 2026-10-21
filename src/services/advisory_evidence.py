@@ -6,6 +6,7 @@ from src.models.autonomy import AutonomyState
 from src.config import settings
 from src.models.enums import AutonomyLevel
 from src.models.request import ActionRequest
+from src.models.semantic import ActionClass, UnsupportedActionEvidence
 from src.services import blast_radius, monitoring, semantic_engine
 
 
@@ -35,6 +36,19 @@ def build_evidence(
     if not settings.OFFLINE_MODE or settings.SEMANTIC_PIPELINE_MODE != 'baseline':
         from src.db.transaction_guard import assert_no_transaction
         assert_no_transaction()
+    if request.action_class not in {action.value for action in ActionClass}:
+        unsupported = UnsupportedActionEvidence(action_class=request.action_class,
+            reason='The runtime does not support the submitted action; semantic stages were not run.')
+        for stage in ('blast_radius', 'semantic_baseline', 'analyzer', 'retrieval', 'judge'):
+            monitoring.record(stage, 'skipped', error_type='unsupported_runtime_action')
+        semantic = semantic_engine.SemanticAssessment(flag=True, score=0.0,
+            warning=unsupported.reason, source=unsupported.version,
+            threshold=settings.SEMANTIC_THRESHOLD, classification='not_assessed')
+        return {'unsupported_action': unsupported.model_dump(mode='json'),
+            'blast_radius': {'source': unsupported.version, 'status': 'skipped', 'reason': unsupported.reason},
+            'semantic_flag': True, 'semantic_score': 0.0, 'semantic_warning': unsupported.reason,
+            'semantic': semantic.as_evidence(), 'environment': request.environment,
+            'autonomy_snapshot': autonomy_snapshot(request, autonomy_state)}
     with monitoring.span("blast_radius"):
         radius = blast_radius.estimate(request)
     with monitoring.span("semantic_baseline") as event:

@@ -292,6 +292,17 @@ def _evaluate(
     evidence: Dict[str, Any],
     autonomy_state: Optional[AutonomyState],
 ) -> EvaluationResult:
+    # New refusals take precedence over policy checks so the ledger and API
+    # share one reason. Keep v1's original precedence for historical replay.
+    refusal = None
+    if evidence.get('unsupported_action') is not None:
+        from src.models.semantic import UnsupportedActionEvidence
+        refusal = UnsupportedActionEvidence.model_validate(evidence['unsupported_action'])
+        if refusal.action_class != request.action_class:
+            raise PolicyInterpretationError('unsupported action evidence differs from the request')
+        if refusal.version == 'unsupported-action-v2':
+            return _deny(request, policy, evidence, refusal.reason)
+
     rules = policy.rules_json or {}
 
     sandbox_root = rules.get("sandbox_root")
@@ -354,6 +365,8 @@ def _evaluate(
             evidence,
             f"action {request.action_class!r} is not in the policy risk_map",
         )
+    if refusal is not None:
+        return _deny(request, policy, evidence, refusal.reason)
     if request.action_class not in granted:
         return _deny(
             request,

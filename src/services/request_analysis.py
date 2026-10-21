@@ -9,14 +9,22 @@ from src.services.semantic_failures import failure, handled, SemanticValidationE
 from src.services.parser_workflow import run_parser_workflow
 from src.services.parser_prompt import analysis_instructions
 
-VERSION = 'request-analysis-v1'
+VERSION = 'request-analysis-v5'
 SYSTEM = (
     "Return RequestAnalysis for the supplied request. Its fields are actions, "
-    "unsupported_actions, intent_summary, potential_risks, unknowns, and unmapped_concerns. "
-    "Put action mentions in the top-level actions list; each contains only action_class and excerpt. "
-    "Do not wrap this response in an analysis object. Potential risks contain category, "
+    "unsupported_actions, intent_summary, potential_risks, unknowns, unmapped_concerns, "
+    "and credential_status_claims. "
+    "actions contains mentions with only action_class and excerpt. "
+    "Do not wrap the response in an analysis object. Potential risks contain category, "
     "excerpt, and query. Unsupported actions and unmapped concerns contain description and "
     "excerpt. Do not return an executable action object or generate file contents.\n"
+    "STRUCTURED REQUESTS: With no Original instruction, Authoritative action JSON is still a "
+    "submitted action. For a supported JSON-only request, return "
+    "exactly one matching action mention and no unsupported actions. Quote an exact JSON "
+    "substring such as \"action_class\": \"create_file\" as its excerpt. Do not return "
+    "actions=[] because natural-language wording is absent. Operations inside parameters.content "
+    "are file data, not additional actions. If an Original instruction is present, apply the shared "
+    "cross-check rule below; do not suppress operations or conflicts to match the JSON.\n"
     + analysis_instructions()
 )
 
@@ -33,7 +41,7 @@ def provider_info(stage):
 
 
 def validate_result(result: RequestAnalysis, source: str, *, system=SYSTEM, schema=RequestAnalysis,
-                    provider=None, model=None):
+                    provider=None, model=None, structured_action: str | None = None):
     primary_provider, primary_model = provider_info('ANALYZER')
     provider, model = provider or primary_provider, model or primary_model
     errors = {}
@@ -42,6 +50,7 @@ def validate_result(result: RequestAnalysis, source: str, *, system=SYSTEM, sche
         ('potential_risks', result.potential_risks),
         ('unmapped_concerns', result.unmapped_concerns),
         ('unsupported_actions', result.unsupported_actions),
+        ('credential_status_claims', result.credential_status_claims),
     )
     for field, rows in collections:
         for index, item in enumerate(rows):
@@ -51,10 +60,28 @@ def validate_result(result: RequestAnalysis, source: str, *, system=SYSTEM, sche
                     'message': ('Copy an exact, continuous quote from the supplied instruction. '
                                 'Do not paraphrase or add words.')
                 }]
+    if structured_action is not None:
+        if len(result.actions) != 1 or result.actions[0].action_class.value != structured_action:
+            errors['actions'] = [{
+                'code': 'structured_action_not_preserved',
+                'message': ('This JSON-only request submits exactly one supported operation: '
+                            + structured_action + '. Return exactly one matching action mention, '
+                            'quoting its exact action_class field from Authoritative action JSON. '
+                            'The absence of natural-language text does not mean there is no action. '
+                            'Do not treat operations described in file content as executable actions.')
+            }]
+        if result.unsupported_actions:
+            errors['unsupported_actions'] = [{
+                'code': 'supported_structured_action_mislabeled',
+                'message': ('The submitted JSON-only operation is supported. Do not label it '
+                            'unsupported because of risk, missing natural-language text, or '
+                            'operations described inside file content.')
+            }]
     if errors:
         raise SemanticValidationError(
-            'analysis contains ungrounded excerpts',
-            failure_category='grounding_invalid', validation_errors=errors)
+            'analysis failed source grounding or structured action coverage',
+            failure_category=('grounding_invalid' if any(k.endswith('.excerpt') for k in errors)
+                              else 'semantic_validation_invalid'), validation_errors=errors)
     return dict(version=VERSION, provider=provider, model=model,
                 prompt_hash=hashlib.sha256(system.encode()).hexdigest(),
                 schema_hash=hashlib.sha256(json.dumps(schema.model_json_schema(),sort_keys=True).encode()).hexdigest(),
@@ -62,7 +89,7 @@ def validate_result(result: RequestAnalysis, source: str, *, system=SYSTEM, sche
                 status='applied', result=result.model_dump(mode='json'))
 
 
-def analyze(source: str):
+def analyze(source: str, *, structured_action: str | None = None):
     from src.db.transaction_guard import assert_no_transaction
     assert_no_transaction()
     provider, model = provider_info('ANALYZER')
@@ -75,7 +102,8 @@ def analyze(source: str):
         result = RequestAnalysis.model_validate(value)
         evidence = validate_result(
             result, source, system=SYSTEM, schema=RequestAnalysis,
-            provider=parser.last_profile.provider, model=parser.last_profile.model)
+            provider=parser.last_profile.provider, model=parser.last_profile.model,
+            structured_action=structured_action)
         return result, evidence
 
     def on_attempt(attempt, status, exc, duration_ms, validation_errors, trace):
@@ -170,7 +198,7 @@ def source_text(request):
                       },
                      ensure_ascii=False, sort_keys=True, allow_nan=False)
     raw = request.parameters.get('raw_prompt')
-    return ('Original instruction:\n' + raw + '\n' if isinstance(raw,str) else '') + 'Authoritative action JSON:\n' + authoritative
+    return ('Original instruction:\n' + raw + '\n' if isinstance(raw,str) and raw.strip() else '') + 'Authoritative action JSON:\n' + authoritative
 
 
 def canonical_text(request):

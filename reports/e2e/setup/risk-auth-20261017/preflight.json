@@ -1,0 +1,1349 @@
+{
+  "api": {
+    "evidence": {
+      "health": {
+        "status": "ok"
+      },
+      "openapi": "requires authenticated verification",
+      "settings_verified": false
+    },
+    "status": "PASS"
+  },
+  "broker_worker": {
+    "detail": "verify through background scenario and authenticated diagnostics",
+    "status": "NOT RUN"
+  },
+  "cloudamqp": {
+    "evidence": {
+      "messages_published": 0,
+      "queue": "guarded-autonomy-layer.workflows.v1",
+      "queue_declared": false,
+      "tls_connected": true
+    },
+    "status": "PASS"
+  },
+  "configuration": {
+    "evidence": {
+      "assisted_threshold": 5,
+      "background_enabled": true,
+      "baseline_corpus_hash": "f40794e3d51f331e663e350735670fd1f6b88dfd39a79d9ad8aa257448843443",
+      "code_hash": "d3007212279a734c1b52aa84a036fe460cbabc3bc07b05311b0f0a020a25eac6",
+      "collections": [
+        "policy_prompts",
+        "semantic_advisory_v3"
+      ],
+      "commit": "ecfeb2513377b4ff2abca8398eb6f30044886cd6",
+      "dirty": true,
+      "embedding_spec": "gemini:gemini-embedding-2:768:similarity-v1",
+      "file_hashes": {
+        "config/llm_routing.yaml": "f70ce640f124c44e3713a4838ff02b1c5381e1225f796db5ac7a0bba1595f5ac",
+        "examples/e2e/scenarios.json": "0b40470f925953e2f0504821d3b85310137467b3c10f51f5f77ff6aa06fb0f2a",
+        "examples/semantic_evaluation_combined_v1/cases.json": "b62ac4f8b8eb56e51dd2885a62e6d70ddc23faec8f93adb214ec7f71b05f4263",
+        "examples/semantic_evaluation_combined_v1/compatibility_review.json": "5f52ff5cf0edfdac674bec7fa03ec2fd94571f57b701bdb898b20355d7f8df9b",
+        "examples/semantic_evaluation_combined_v1/manifest.json": "0c01285505e28c275ed6b3080b08e9a81512fe1569f24543320a466cb89054a9",
+        "examples/semantic_evaluation_combined_v1/parser_expectations.json": "6023c241c7d375d51be479bd353c13f1620e7d72ae798f9fc3547cc0492ba041"
+      },
+      "live_threshold": 20,
+      "queue": "guarded-autonomy-layer.workflows.v1",
+      "redis_namespace": "guarded-autonomy-layer",
+      "routing": {
+        "embeddings": {
+          "models": {
+            "aicredits_3_large": {
+              "model": "text-embedding-3-large",
+              "provider": "aicredits"
+            },
+            "aicredits_3_small": {
+              "model": "text-embedding-3-small",
+              "provider": "aicredits"
+            },
+            "aicredits_ada_002": {
+              "model": "text-embedding-ada-002",
+              "provider": "aicredits"
+            },
+            "aicredits_bge_base": {
+              "model": "baai/bge-base-en-v1.5",
+              "provider": "aicredits"
+            },
+            "aicredits_bge_large": {
+              "model": "baai/bge-large-en-v1.5",
+              "provider": "aicredits"
+            },
+            "aicredits_bge_m3": {
+              "model": "baai/bge-m3",
+              "provider": "aicredits"
+            },
+            "aicredits_e5_base": {
+              "model": "intfloat/e5-base-v2",
+              "provider": "aicredits"
+            },
+            "aicredits_e5_large": {
+              "model": "intfloat/e5-large-v2",
+              "provider": "aicredits"
+            },
+            "aicredits_e5_multilingual": {
+              "model": "intfloat/multilingual-e5-large",
+              "provider": "aicredits"
+            },
+            "aicredits_e5_multilingual_instruct": {
+              "model": "intfloat/multilingual-e5-large-instruct",
+              "provider": "aicredits"
+            },
+            "aicredits_gemini_001": {
+              "model": "google/gemini-embedding-001",
+              "provider": "aicredits"
+            },
+            "aicredits_gemini_2_preview": {
+              "model": "google/gemini-embedding-2-preview",
+              "provider": "aicredits"
+            },
+            "aicredits_gte_base": {
+              "model": "thenlper/gte-base",
+              "provider": "aicredits"
+            },
+            "aicredits_gte_large": {
+              "model": "thenlper/gte-large",
+              "provider": "aicredits"
+            },
+            "aicredits_minilm_l12": {
+              "model": "sentence-transformers/all-minilm-l12-v2",
+              "provider": "aicredits"
+            },
+            "aicredits_minilm_l6": {
+              "model": "sentence-transformers/all-minilm-l6-v2",
+              "provider": "aicredits"
+            },
+            "aicredits_mpnet_base": {
+              "model": "sentence-transformers/all-mpnet-base-v2",
+              "provider": "aicredits"
+            },
+            "aicredits_openai_3_large": {
+              "model": "openai/text-embedding-3-large",
+              "provider": "aicredits"
+            },
+            "aicredits_openai_3_small": {
+              "model": "openai/text-embedding-3-small",
+              "provider": "aicredits"
+            },
+            "aicredits_openai_ada_002": {
+              "model": "openai/text-embedding-ada-002",
+              "provider": "aicredits"
+            },
+            "aicredits_paraphrase_minilm_l6": {
+              "model": "sentence-transformers/paraphrase-minilm-l6-v2",
+              "provider": "aicredits"
+            },
+            "aicredits_text_004": {
+              "model": "google/text-embedding-004",
+              "provider": "aicredits"
+            },
+            "gemini_current": {
+              "model": "gemini-embedding-2",
+              "provider": "gemini"
+            },
+            "jina_v3": {
+              "model": "jina-embeddings-v3",
+              "provider": "jina"
+            },
+            "local_minilm_l6": {
+              "model": "sentence-transformers/all-MiniLM-L6-v2",
+              "provider": "sentence_transformers"
+            }
+          },
+          "selected": "gemini_current"
+        },
+        "fallback_policies": {
+          "transient": {
+            "http_statuses": [
+              408,
+              429,
+              500,
+              502,
+              503,
+              504
+            ],
+            "on_connection_error": true,
+            "on_timeout": true
+          }
+        },
+        "models": {
+          "aicredits_claude_sonnet": {
+            "model": "anthropic/claude-sonnet-5.5",
+            "provider": "aicredits"
+          },
+          "aicredits_deepseek": {
+            "model": "deepseek/deepseek-v3.2",
+            "provider": "aicredits"
+          },
+          "aicredits_nova_micro": {
+            "model": "amazon/nova-micro-v1",
+            "provider": "aicredits"
+          },
+          "aicredits_qwen_flash": {
+            "model": "qwen/qwen3.8-flash",
+            "provider": "aicredits"
+          },
+          "aicredits_safeguard": {
+            "model": "openai/gpt-oss-safeguard-20b",
+            "provider": "aicredits"
+          },
+          "aicredits_ternary_bonsai": {
+            "model": "prism-ml/ternary-bonsai-2-27b",
+            "provider": "aicredits"
+          },
+          "gemini_lite": {
+            "model": "gemini-3.5-flash-lite",
+            "provider": "gemini"
+          },
+          "groq_qwen": {
+            "model": "qwen/qwen3.8-27b",
+            "provider": "groq"
+          },
+          "sarvam_main": {
+            "model": "sarvam-105b",
+            "provider": "sarvam"
+          }
+        },
+        "providers": {
+          "aicredits": {
+            "adapter": "openai_compatible",
+            "api_key_setting": "AI_CREDITS_API_KEY",
+            "base_url_setting": "AI_CREDITS_API_URL"
+          },
+          "gemini": {
+            "adapter": "google_genai",
+            "api_key_setting": "GEMINI_API_KEY",
+            "base_url_setting": null
+          },
+          "groq": {
+            "adapter": "groq",
+            "api_key_setting": "GROQ_API_KEY",
+            "base_url_setting": null
+          },
+          "sarvam": {
+            "adapter": "sarvam",
+            "api_key_setting": "SARVAM_API_KEY",
+            "base_url_setting": null
+          }
+        },
+        "purposes": {
+          "request_analyzer": {
+            "fallback_policy": "transient",
+            "max_output_attempts": 3,
+            "max_output_tokens": 6144,
+            "max_provider_retries_per_attempt": 1,
+            "models": [
+              "aicredits_deepseek",
+              "gemini_lite",
+              "aicredits_qwen_flash"
+            ],
+            "stage_timeout_seconds": 120.0,
+            "timeout_seconds": 20.0
+          },
+          "request_parser": {
+            "fallback_policy": "transient",
+            "max_output_attempts": 3,
+            "max_output_tokens": 6144,
+            "max_provider_retries_per_attempt": 1,
+            "models": [
+              "aicredits_deepseek",
+              "gemini_lite",
+              "aicredits_qwen_flash"
+            ],
+            "stage_timeout_seconds": 120.0,
+            "timeout_seconds": 20.0
+          },
+          "review_explainer": {
+            "fallback_policy": "transient",
+            "max_output_attempts": 2,
+            "max_output_tokens": 2048,
+            "max_provider_retries_per_attempt": 1,
+            "models": [
+              "gemini_lite",
+              "aicredits_deepseek"
+            ],
+            "stage_timeout_seconds": 80.0,
+            "timeout_seconds": 20.0
+          },
+          "semantic_judge": {
+            "fallback_policy": "transient",
+            "max_output_attempts": 3,
+            "max_output_tokens": 6144,
+            "max_provider_retries_per_attempt": 1,
+            "models": [
+              "gemini_lite",
+              "aicredits_qwen_flash",
+              "groq_qwen"
+            ],
+            "stage_timeout_seconds": 120.0,
+            "timeout_seconds": 20.0
+          }
+        }
+      },
+      "semantic_mode": "review",
+      "v3_corpus_hash": "d82e8ce98e5a1b5dc4e68b40b3cef0b54be5fcd982d9b8f00fff500096dc43be",
+      "v3_eligible": 64,
+      "v3_provisional": true
+    },
+    "status": "PASS"
+  },
+  "postgresql": {
+    "evidence": {
+      "constraints": {
+        "auth_principals": {
+          "checks": [
+            {
+              "comment": null,
+              "name": "ck_auth_principal_identity",
+              "sqltext": "kind::text = 'agent'::text AND agent_id IS NOT NULL AND length(TRIM(BOTH FROM agent_id)) > 0 AND actor_role IS NOT NULL AND length(TRIM(BOTH FROM actor_role)) > 0 AND username IS NULL AND password_hash IS NULL OR kind::text = 'human'::text AND agent_id IS NULL AND actor_role IS NULL AND username IS NOT NULL AND length(TRIM(BOTH FROM username)) > 0 AND password_hash IS NOT NULL AND password_hash::text ~~ '$argon2id$%%'::text"
+            },
+            {
+              "comment": null,
+              "name": "ck_auth_principal_kind",
+              "sqltext": "(kind::text = ANY (ARRAY['agent'::character varying, 'human'::character varying]::text[])) AND auth_version >= 1 AND length(TRIM(BOTH FROM principal_id)) > 0"
+            },
+            {
+              "comment": null,
+              "name": "ck_auth_principal_permissions",
+              "sqltext": "jsonb_typeof(permissions) = 'array'::text AND (kind::text = 'agent'::text AND permissions <@ '[\"actions:evaluate\", \"actions:execute\", \"actions:rollback\", \"records:read_own\"]'::jsonb OR kind::text = 'human'::text AND permissions <@ '[\"agents:promote\", \"escalations:prepare\", \"escalations:review\", \"evidence:read\", \"policies:promote\"]'::jsonb)"
+            }
+          ],
+          "unique": [
+            {
+              "column_names": [
+                "agent_id"
+              ],
+              "comment": null,
+              "dialect_options": {
+                "postgresql_include": [],
+                "postgresql_nulls_not_distinct": false
+              },
+              "name": "auth_principals_agent_id_key"
+            },
+            {
+              "column_names": [
+                "username"
+              ],
+              "comment": null,
+              "dialect_options": {
+                "postgresql_include": [],
+                "postgresql_nulls_not_distinct": false
+              },
+              "name": "auth_principals_username_key"
+            }
+          ]
+        },
+        "decision_records": {
+          "checks": [
+            {
+              "comment": null,
+              "name": "ck_decision_autonomy_level",
+              "sqltext": "autonomy_level::text = ANY (ARRAY['SHADOW'::character varying, 'ASSISTED'::character varying, 'LIVE'::character varying]::text[])"
+            },
+            {
+              "comment": null,
+              "name": "ck_decision_outcome",
+              "sqltext": "outcome::text = ANY (ARRAY['ALLOWED'::character varying, 'DENIED'::character varying, 'ESCALATED'::character varying, 'PENDING_APPROVAL'::character varying, 'SHADOW_LOGGED'::character varying]::text[])"
+            },
+            {
+              "comment": null,
+              "name": "ck_decision_risk_level",
+              "sqltext": "risk_level::text = ANY (ARRAY['READ_ONLY'::character varying, 'LOW'::character varying, 'MEDIUM'::character varying, 'HIGH'::character varying, 'CRITICAL'::character varying]::text[])"
+            }
+          ],
+          "unique": []
+        },
+        "execution_records": {
+          "checks": [],
+          "unique": [
+            {
+              "column_names": [
+                "decision_id"
+              ],
+              "comment": null,
+              "dialect_options": {
+                "postgresql_include": [],
+                "postgresql_nulls_not_distinct": false
+              },
+              "name": "execution_records_decision_id_key"
+            }
+          ]
+        },
+        "workflow_operations": {
+          "checks": [
+            {
+              "comment": null,
+              "name": "ck_workflow_background_schedule",
+              "sqltext": "execution_mode::text = 'sync'::text OR input_envelope IS NOT NULL AND caller_principal_id IS NOT NULL AND (status::text = 'PROCESSING'::text AND run_deadline IS NOT NULL AND heartbeat_at IS NOT NULL AND lease_until <= run_deadline AND queue_deadline IS NULL AND next_run_at IS NULL OR status::text <> 'PROCESSING'::text AND owner IS NULL AND lease_until IS NULL AND run_deadline IS NULL AND heartbeat_at IS NULL AND (status::text = 'QUEUED'::text AND queue_deadline IS NOT NULL AND next_run_at IS NULL OR status::text = 'RETRY_WAIT'::text AND queue_deadline IS NULL AND next_run_at IS NOT NULL OR (status::text = ANY (ARRAY['COMPLETED'::character varying, 'FAILED'::character varying]::text[])) AND queue_deadline IS NULL AND next_run_at IS NULL))"
+            },
+            {
+              "comment": null,
+              "name": "ck_workflow_counters",
+              "sqltext": "generation >= 1 AND run_count >= 0 AND automatic_retry_count >= 0"
+            },
+            {
+              "comment": null,
+              "name": "ck_workflow_execution_mode",
+              "sqltext": "execution_mode::text = ANY (ARRAY['sync'::character varying, 'background'::character varying]::text[])"
+            },
+            {
+              "comment": null,
+              "name": "ck_workflow_identity",
+              "sqltext": "length(TRIM(BOTH FROM kind)) > 0 AND length(TRIM(BOTH FROM scope)) > 0 AND length(TRIM(BOTH FROM idempotency_key)) >= 1 AND length(TRIM(BOTH FROM idempotency_key)) <= 200 AND length(input_hash::text) = 64"
+            },
+            {
+              "comment": null,
+              "name": "ck_workflow_owner_stage",
+              "sqltext": "length(TRIM(BOTH FROM stage)) > 0 AND (owner IS NULL OR length(TRIM(BOTH FROM owner)) > 0)"
+            },
+            {
+              "comment": null,
+              "name": "ck_workflow_result",
+              "sqltext": "status::text = 'QUEUED'::text AND execution_mode::text = 'background'::text AND input_envelope IS NOT NULL AND response IS NULL AND error IS NULL AND owner IS NULL AND lease_until IS NULL AND retryable = false OR status::text = 'RETRY_WAIT'::text AND execution_mode::text = 'background'::text AND input_envelope IS NOT NULL AND response IS NULL AND error IS NOT NULL AND owner IS NULL AND lease_until IS NULL AND retryable = true OR status::text = 'PROCESSING'::text AND response IS NULL AND error IS NULL AND retryable = false AND owner IS NOT NULL AND lease_until IS NOT NULL OR status::text = 'COMPLETED'::text AND response IS NOT NULL AND error IS NULL AND retryable = false OR status::text = 'FAILED'::text AND response IS NULL AND error IS NOT NULL"
+            },
+            {
+              "comment": null,
+              "name": "ck_workflow_status",
+              "sqltext": "status::text = ANY (ARRAY['QUEUED'::character varying, 'RETRY_WAIT'::character varying, 'PROCESSING'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying]::text[])"
+            }
+          ],
+          "unique": [
+            {
+              "column_names": [
+                "kind",
+                "scope",
+                "idempotency_key"
+              ],
+              "comment": null,
+              "dialect_options": {
+                "postgresql_include": [],
+                "postgresql_nulls_not_distinct": false
+              },
+              "name": "uq_workflow_identity"
+            }
+          ]
+        }
+      },
+      "heads": [
+        "c3039e6ee0af"
+      ],
+      "policies": [
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "1b6ac2c95eb7f323c9f3044c52626d8ee8906228af7734402749e39d11d121a0",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.2"
+          },
+          "version": "1.0.2"
+        },
+        {
+          "is_active": false,
+          "is_shadow": true,
+          "policy_hash": "1e010479426777490916b6d6977fd122a82465e35e05acac3f4335ea805ce5ec",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              },
+              {
+                "pattern": "(?i)(^|/)(\\.env|\\.env\\..+)$",
+                "reason": "environment file may contain live secrets"
+              },
+              {
+                "pattern": "(?i)/\\.git/(config|HEAD)$",
+                "reason": "repository integrity metadata"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.1.0"
+          },
+          "version": "1.1.0"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "2d54b3952e8e0de930fa2ac9c274cccd0b13c9a8732cf28cefde7e2831e555b3",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.4"
+          },
+          "version": "1.0.4"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "591ae6f08d428225407ee392a9f3fefb89b1042282b8b6b23674761aab801a24",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.5"
+          },
+          "version": "1.0.5"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "599b78a0d2548862f32817f2a939abd39ca4f4cef78be2b630d06de1e1298590",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.8"
+          },
+          "version": "1.0.8"
+        },
+        {
+          "is_active": true,
+          "is_shadow": false,
+          "policy_hash": "5e29be9cb52cd73c37a76dc3736a947d961ea8c0ea9372746c908ec291c68043",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.10"
+          },
+          "version": "1.0.10"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "93e0d43a71dfc2e28ac00c57a5b11eefd2eb92c9d89c24b2725ae9960eba2a33",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.7"
+          },
+          "version": "1.0.7"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "98f9a2c91441f9d35b0310b2e16e95e1bd3d0a01e802fc00e2e9b96c2d110081",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.0"
+          },
+          "version": "1.0.0"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "9f67f0c327bf0fe4c9cfa4a091f23615e8437b8221ee3a1fd529e5c3bf58954a",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.3"
+          },
+          "version": "1.0.3"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "ad08aba2da7b1762e86175ff59894781b890e3632d8686df9f3571cb793618b9",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.1"
+          },
+          "version": "1.0.1"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "c6fb5526d68a143275c5997ee7fee9657bfa9aee2ef1c575070e94827b4395fb",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.9"
+          },
+          "version": "1.0.9"
+        },
+        {
+          "is_active": false,
+          "is_shadow": false,
+          "policy_hash": "e8ee478f4423da3521c707107a09f34e0e18c82a1bf3631b4f186a302875cc95",
+          "rules_json": {
+            "environment_rules": {
+              "destructive_allowed_environments": [
+                "development"
+              ],
+              "prod_escalates": [
+                "delete_file",
+                "delete_directory"
+              ]
+            },
+            "regex_deny_rules": [
+              {
+                "pattern": "(?i)rm\\s+-rf\\s+/",
+                "reason": "destructive shell payload"
+              },
+              {
+                "pattern": "(?i)/etc/(passwd|shadow)",
+                "reason": "system credential file"
+              },
+              {
+                "pattern": "(?i)\\.ssh/(id_rsa|authorized_keys)",
+                "reason": "ssh private key material"
+              }
+            ],
+            "risk_map": {
+              "create_directory": "LOW",
+              "create_file": "LOW",
+              "delete_directory": "CRITICAL",
+              "delete_file": "HIGH",
+              "move_file": "MEDIUM",
+              "read_file": "READ_ONLY",
+              "update_file": "MEDIUM"
+            },
+            "role_permissions": {
+              "admin_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file",
+                "delete_file",
+                "delete_directory"
+              ],
+              "read_only_agent": [
+                "read_file"
+              ],
+              "workspace_agent": [
+                "read_file",
+                "create_file",
+                "create_directory",
+                "update_file",
+                "move_file"
+              ]
+            },
+            "sandbox_root": "/srv/agent/workspace",
+            "ttl_map": {
+              "CRITICAL": null,
+              "HIGH": 60,
+              "LOW": 300,
+              "MEDIUM": 120,
+              "READ_ONLY": 600
+            },
+            "version": "1.0.6"
+          },
+          "version": "1.0.6"
+        }
+      ],
+      "tables": [
+        "autonomy_promotion_events",
+        "policy_promotion_events",
+        "alembic_version",
+        "consumed_tokens",
+        "policies",
+        "decision_records",
+        "simulated_resources",
+        "execution_records",
+        "autonomy_state",
+        "shadow_records",
+        "human_review_records",
+        "request_attempt_events",
+        "escalation_queue",
+        "request_interpretations",
+        "workflow_dispatches",
+        "auth_principals",
+        "auth_credentials",
+        "auth_events",
+        "workflow_operations"
+      ]
+    },
+    "status": "PASS"
+  },
+  "qdrant": {
+    "evidence": [
+      {
+        "collection": "policy_prompts",
+        "complete": true,
+        "dimensions": 768,
+        "expected_points": 20,
+        "missing_indexes": [],
+        "missing_or_mismatched": [],
+        "payload_indexes": [
+          "action_family",
+          "corpus_hash",
+          "embedding_spec",
+          "label"
+        ],
+        "points_count": 26
+      },
+      {
+        "collection": "semantic_advisory_v3",
+        "complete": true,
+        "dimensions": 768,
+        "expected_points": 64,
+        "missing_indexes": [],
+        "missing_or_mismatched": [],
+        "payload_indexes": [
+          "action_families",
+          "corpus_hash",
+          "embedding_spec",
+          "label",
+          "review_status",
+          "risk_aspects",
+          "text_format"
+        ],
+        "points_count": 64
+      }
+    ],
+    "status": "PASS"
+  },
+  "redis": {
+    "evidence": {
+      "namespace": "guarded-autonomy-layer",
+      "ping": true
+    },
+    "status": "PASS"
+  }
+}

@@ -84,7 +84,8 @@ def submit(session, request: NaturalLanguageRequest, evaluate, *, row=None, fina
                     validation_errors=_validation_errors(exc) if getattr(exc, 'validation_errors', None)
                     else _validation_errors(root), analysis=getattr(exc, 'analysis', None),
                     parser_attempts=getattr(exc, 'parser_attempts', None),
-                    correction_message=getattr(exc, 'parser_feedback', None) or getattr(root, 'parser_feedback', None))
+                    correction_message=(getattr(exc, 'parser_feedback', None)
+                                        or getattr(root, 'parser_feedback', None) or None))
         response_fields = dict(request_id=request.request_id, interpretation_id=row.interpretation_id,
                                revision=row.revision, detail=str(exc), validation_errors=turn['validation_errors'])
         if unavailable:

@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import inspect, func
 from datetime import datetime, timezone, timedelta
-from sqlmodel import Session
+from sqlmodel import Session, select
 from starlette.concurrency import run_in_threadpool
 
 from src.db.database import engine
@@ -211,6 +211,8 @@ def create_app(database_engine=None) -> FastAPI:
             elif request.method == 'GET' and response.status_code < 400:
                 await run_in_threadpool(auth.audit, database_engine, caller, 'accepted', 'read')
             response.headers.setdefault('X-Correlation-ID', correlation)
+            if path.startswith('/api/v1/control/approve/'):
+                response.headers['Cache-Control'] = 'no-store'
             return response
         except HTTPException as exc:
             recorded = await run_in_threadpool(auth.audit, database_engine, caller, 'denied', 'HTTP_' + str(exc.status_code),
@@ -218,7 +220,9 @@ def create_app(database_engine=None) -> FastAPI:
             if not recorded:
                 return audit_unavailable(correlation)
             return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail},
-                                headers={**(exc.headers or {}), 'X-Correlation-ID': correlation})
+                                headers={**(exc.headers or {}), 'X-Correlation-ID': correlation,
+                                         **({'Cache-Control': 'no-store'}
+                                            if path.startswith('/api/v1/control/approve/') else {})})
         finally:
             if context_token is not None:
                 auth.current.reset(context_token)

@@ -363,7 +363,7 @@ def run_parser_workflow(
             error.parser_attempts = final["attempts"]
             error.parser_output_attempts = final["output_attempt"]
             error.parser_provider_calls = final["attempts"]
-            error.parser_feedback = final.get("feedback")
+            error.parser_feedback = final.get("feedback") or None
             error.analysis = final.get("analysis")
         except (AttributeError, TypeError):
             pass

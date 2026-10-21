@@ -69,6 +69,8 @@ pycparser==3.0
 pydantic==2.13.5
 pydantic-settings==2.15.0
 pydantic_core==2.46.5
+pymongo==4.19.0
+dnspython==2.9.0
 Pygments==2.21.0
 pytest==9.1.1
 python-dotenv==1.2.4

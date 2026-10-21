@@ -37,6 +37,12 @@ models:
   aicredits_claude_sonnet:
     provider: aicredits
     model: anthropic/claude-sonnet-5.5
+  aicredits_claude_haiku:
+    provider: aicredits
+    model: anthropic/claude-haiku-5.5
+  aicredits_gemini_lite:
+    provider: aicredits
+    model: google/gemini-3.5-flash-lite
   aicredits_nova_micro:
     provider: aicredits
     model: amazon/nova-micro-v1
@@ -83,7 +89,7 @@ fallback_policies:
 purposes:
 # Output attempts include the initial answer; provider retries reset for each output attempt.
   request_parser:
-    models: [aicredits_deepseek, gemini_lite, aicredits_qwen_flash]
+    models: [aicredits_claude_haiku, aicredits_deepseek, aicredits_qwen_flash, gemini_lite]
     fallback_policy: transient
     timeout_seconds: 20
     max_output_tokens: 6144
@@ -91,7 +97,7 @@ purposes:
     max_provider_retries_per_attempt: 1
     stage_timeout_seconds: 120
   request_analyzer:
-    models: [aicredits_deepseek, gemini_lite, aicredits_qwen_flash]
+    models: [aicredits_claude_haiku, aicredits_deepseek, aicredits_qwen_flash, gemini_lite]
     fallback_policy: transient
     timeout_seconds: 20
     max_output_tokens: 6144
@@ -99,18 +105,18 @@ purposes:
     max_provider_retries_per_attempt: 1
     stage_timeout_seconds: 120
   semantic_judge:
-    models: [gemini_lite, aicredits_qwen_flash, groq_qwen,]
+    models: [aicredits_claude_haiku, aicredits_gemini_lite]
     fallback_policy: transient
-    timeout_seconds: 20
+    timeout_seconds: 60
     max_output_tokens: 6144
     max_output_attempts: 3
     max_provider_retries_per_attempt: 1
     stage_timeout_seconds: 120
   review_explainer:
-    models: [gemini_lite, aicredits_deepseek,]
+    models: [aicredits_claude_haiku, gemini_lite, aicredits_deepseek]
     fallback_policy: transient
     timeout_seconds: 20
-    max_output_tokens: 2048
+    max_output_tokens: 4096
     max_output_attempts: 2
     max_provider_retries_per_attempt: 1
     stage_timeout_seconds: 80

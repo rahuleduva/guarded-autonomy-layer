@@ -1,0 +1,75 @@
+{
+  "version": "semantic-corpus-history-v1",
+  "expected_count": 100,
+  "review_status": "pending_human_review",
+  "current_fingerprint": "231e7a0e889010153fc6e726362283aa21b7dd7f3f68b27bdf70a88ee551147d",
+  "added_ids": [
+    "contrast-01",
+    "contrast-02",
+    "contrast-03",
+    "contrast-04",
+    "contrast-05",
+    "contrast-06",
+    "contrast-07",
+    "contrast-08",
+    "contrast-09",
+    "contrast-10",
+    "contrast-11",
+    "contrast-12",
+    "contrast-13",
+    "contrast-14",
+    "contrast-15",
+    "contrast-16",
+    "contrast-17",
+    "contrast-18",
+    "contrast-19",
+    "contrast-20",
+    "contrast-21",
+    "contrast-22",
+    "contrast-23",
+    "contrast-24",
+    "contrast-25",
+    "contrast-26",
+    "contrast-27",
+    "contrast-28",
+    "contrast-29",
+    "contrast-30",
+    "contrast-31",
+    "contrast-32",
+    "cycle2-01",
+    "cycle2-02",
+    "cycle2-03",
+    "cycle2-04"
+  ],
+  "revisions": [
+    {
+      "count": 64,
+      "fingerprint": "d82e8ce98e5a1b5dc4e68b40b3cef0b54be5fcd982d9b8f00fff500096dc43be",
+      "note": "Original retrieval corpus; source snapshot preserved with test evidence."
+    },
+    {
+      "count": 96,
+      "fingerprint": "3da946e05b023b52f80987f1f86aefa52ecc72b476118f0e4e87025b1a7905dd",
+      "note": "Cycle-one corpus; full results preserved in MongoDB."
+    },
+    {
+      "count": 100,
+      "fingerprint": "3f0840d3fa6c6f982466ea4406c309480329ff54eaf51ac3109aedd7d5c267e6",
+      "note": "Consolidated latest corpus. Cycle-two full live evaluation pending."
+    },
+    {
+      "count": 100,
+      "fingerprint": "231e7a0e889010153fc6e726362283aa21b7dd7f3f68b27bdf70a88ee551147d",
+      "note": "Added a secret_export does_not_apply annotation to contrast-18 so benign public-document reads provide category-matched evidence."
+    }
+  ],
+  "changed_annotations": [
+    {
+      "id": "contrast-18",
+      "category": "secret_export",
+      "assessment": "does_not_apply",
+      "reason": "A public release manual is not authentication material."
+    }
+  ],
+  "historical_sources": "MongoDB guarded-autonomy-layers-e2e-evidence, run risk-quality-20261017/corpus-consolidation; original-64, cycle1-96 and cycle2-100 snapshots."
+}

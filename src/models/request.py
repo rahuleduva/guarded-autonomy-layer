@@ -70,6 +70,14 @@ class NaturalLanguageRequest(ValidatedContract):
     raw_prompt: str = Field(min_length=1, max_length=8192)
 
 
+class UnsupportedActionRefusal(ValidatedContract):
+    """Machine-readable reason the runtime cannot handle a submitted action."""
+
+    code: Literal['UNSUPPORTED_ACTION']
+    action_class: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
 class EvaluationResponse(ValidatedContract):
     """The single response shape both entry points return (A5/A8)."""
 
@@ -88,6 +96,7 @@ class EvaluationResponse(ValidatedContract):
     autonomy_level: AutonomyLevel
     semantic_summary: Optional[SemanticSummary] = None
     semantic_mode: Optional[Literal['observe', 'review']] = None
+    unsupported_action: Optional[UnsupportedActionRefusal] = None
 
     @model_validator(mode="after")
     def validate_policy_response(self):
@@ -97,6 +106,11 @@ class EvaluationResponse(ValidatedContract):
             raise ValueError("response request_id differs from its action request")
         if self.capability_token is not None and self.decision != DecisionOutcome.ALLOWED:
             raise ValueError("only an allowed policy decision may return a capability token")
+        if self.unsupported_action is not None:
+            if (self.decision != DecisionOutcome.DENIED
+                    or self.unsupported_action.action_class != self.action_request.action_class
+                    or self.unsupported_action.reason != self.reason):
+                raise ValueError('unsupported-action refusal must match the denied action and reason')
         return self
 
 

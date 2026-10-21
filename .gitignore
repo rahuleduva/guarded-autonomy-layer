@@ -6,3 +6,8 @@ __pycache__/
 .venv/
 .kilo/
 *.pyc
+# Private per-run E2E credentials, inputs and resumable client state.
+.e2e/
+# Local operating-system and editor metadata.
+.DS_Store
+.vscode/

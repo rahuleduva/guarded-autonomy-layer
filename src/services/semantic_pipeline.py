@@ -3,7 +3,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Any, Literal
 from src.config import settings
-from src.models.semantic import (RequestAnalysis, SemanticFailure,
+from src.models.semantic import (ActionClass, RequestAnalysis, SemanticFailure,
                                  SemanticSummary, SemanticReason, RetrievedCandidate, QueryOutcome)
 from src.services import monitoring, request_analysis, semantic_judge, semantic_retrieval
 from src.services.semantic_failures import failure, handled
@@ -164,7 +164,7 @@ def validate_stages(analysis, retrieval, judgment):
     if judgment['status'] == 'applied':
         if analysis['status'] != 'applied' or not candidates:
             raise ValueError('judgment requires valid upstream evidence')
-        semantic_judge.validate_result(judgment['result'], analysis, retrieval, source=None)
+        semantic_judge.validate_frozen_result(judgment, analysis, retrieval, source=None)
     if not candidates and judgment['status'] != 'skipped':
         raise ValueError('judgment must be skipped without candidates')
     if candidates and judgment['status'] == 'skipped':
@@ -258,7 +258,11 @@ def run(request, *, analysis=None, expanded=True):
     from src.db.transaction_guard import assert_no_transaction
     assert_no_transaction()
     source = request_analysis.source_text(request)
-    analysis = analysis or request_analysis.analyze(source)
+    raw = request.parameters.get('raw_prompt')
+    structured_action = (request.action_class
+        if not (isinstance(raw, str) and raw.strip())
+        and request.action_class in {action.value for action in ActionClass} else None)
+    analysis = analysis or request_analysis.analyze(source, structured_action=structured_action)
     result = dict(version=VERSION, aggregation_version=AGGREGATION_VERSION,
         source_text=source, analysis=analysis, retrieval={'status':'skipped', 'dependency':'analysis'},
         judgment={'status':'skipped', 'dependency':'retrieval'}, mode=settings.SEMANTIC_PIPELINE_MODE)
@@ -314,14 +318,15 @@ def validate_pipeline(pipeline):
         if pipeline['analysis']['status'] == 'applied':
             parsed = RequestAnalysis.model_validate(pipeline['analysis']['result'])
             excerpts = ([a.excerpt for a in parsed.actions] + [r.excerpt for r in parsed.potential_risks]
-                        + [r.excerpt for r in parsed.unmapped_concerns] + [a.excerpt for a in parsed.unsupported_actions])
+                        + [r.excerpt for r in parsed.unmapped_concerns] + [a.excerpt for a in parsed.unsupported_actions]
+                        + [claim.excerpt for claim in parsed.credential_status_claims])
             if any(not excerpt.strip() or excerpt not in pipeline['source_text'] for excerpt in excerpts):
                 raise ValueError('frozen analysis contains ungrounded excerpts')
         stored = SemanticSummary.model_validate(pipeline.get('summary'))
         if summary.model_dump(mode='json') != stored.model_dump(mode='json'):
             raise ValueError('frozen semantic summary is inconsistent')
         if pipeline['judgment']['status'] == 'applied':
-            semantic_judge.validate_result(pipeline['judgment']['result'], pipeline['analysis'],
+            semantic_judge.validate_frozen_result(pipeline['judgment'], pipeline['analysis'],
                 pipeline['retrieval'], source=pipeline['source_text'])
         flag, warning = selection(summary)
     else:
@@ -335,6 +340,16 @@ def validate_pipeline(pipeline):
 
 def verify_frozen(evidence):
     """Validate the stored version, summary, and selected inputs without cloud I/O."""
+    unsupported = evidence.get('unsupported_action')
+    if unsupported is not None:
+        from src.models.semantic import UnsupportedActionEvidence
+        refusal = UnsupportedActionEvidence.model_validate(unsupported)
+        semantic = evidence.get('semantic') or {}
+        if (evidence.get('semantic_pipeline') is not None
+                or evidence.get('semantic_flag') is not True or semantic.get('flag') is not True
+                or semantic.get('source') != refusal.version or semantic.get('classification') != 'not_assessed'
+                or evidence.get('semantic_warning') != refusal.reason or semantic.get('warning') != refusal.reason):
+            raise ValueError('frozen unsupported-action evidence claims inconsistent semantic analysis')
     pipeline = evidence.get('semantic_pipeline')
     if pipeline is None:
         return

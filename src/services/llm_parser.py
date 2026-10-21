@@ -191,7 +191,13 @@ def _preflight(prompt: str) -> None:
         if not named_type and not CONTENT_MARKER.search(prompt) and not path.endswith('/') and '.' not in posixpath.basename(path):
             raise ClarificationRequired("target_resource", "unclear_resource_type",
                                         "Is the target a file or a directory? Restate the instruction with its type explicitly specified.")
-    if re.match(r"\s*(?:please\s+)?(?:move|rename|relocate)\b", instruction, re.I) and not re.search(r"\b(?:to|as)\s+\S", instruction, re.I):
+    move_requested = re.match(r"\s*(?:please\s+)?(?:move|rename|relocate)\b", instruction, re.I)
+    deferred_destination = re.search(
+        r"\b(?:to|into|as)\s+(?:(?:the|a|an)\s+)?(?:destination|location|path|name)\s+"
+        r"[^.!?\n]*(?:\blater\b|\bunknown\b|\bunspecified\b|\bTBD\b)",
+        instruction, re.I,
+    )
+    if move_requested and (deferred_destination or not re.search(r"\b(?:to|into|as)\s+\S", instruction, re.I)):
         raise ClarificationRequired("parameters.destination", "missing_destination",
                                     "What is the exact destination path? Restate the move with both source and destination.")
     if re.match(r"\s*(?:please\s+)?(?:create|update|edit|overwrite|write)\b", instruction, re.I):
@@ -236,20 +242,42 @@ def _validate_grounded_action(parsed: ParsedAction, prompt: str) -> None:
 
     if parsed.action_class == "move_file":
         destination = parsed.parameters.get("destination")
-        if not re.search(r"\b(?:to|as)\s+\S", instruction, re.I):
+        if not re.search(r"\b(?:to|into|as)\s+\S", instruction, re.I):
             raise ClarificationRequired("parameters.destination", "missing_destination",
                                         "What is the exact destination path for this move or rename?")
         if not isinstance(destination, str) or not _named_path(destination, instruction):
             raise UnverifiedActionError("move destination was not specified in the request")
-        destination_clause = re.search(r"\b(?:to|as)\s+(.+)", instruction, re.I)
+        destination_clause = re.search(r"\b(?:to|into|as)\s+(.+)", instruction, re.I)
         if not destination_clause or not _named_path(destination, destination_clause[1]):
             raise UnverifiedActionError("move destination does not match the requested direction")
         source_clause = instruction[:destination_clause.start()]
         if not _named_path(parsed.target_resource, source_clause):
             raise UnverifiedActionError("move source does not match the requested direction")
-    if parsed.action_class == "delete_directory" and "recursive" in parsed.parameters:
-        if parsed.parameters["recursive"] is not True or not re.search(
-            r"\brecursiv(?:e|ely)\b", prompt, re.IGNORECASE,
+    if parsed.action_class == "delete_directory":
+        scope_text = re.sub(r'''"[^"\n]*"|'[^'\n]*'|`[^`\n]*`''', ' ', instruction)
+        # Descriptions in a later sentence ("whether recursive removal is
+        # needed is unknown") do not authorize recursive execution.
+        operation_clause = re.split(r"[.!?;](?:\s|$)", scope_text, maxsplit=1)[0]
+        # A path component or quoted example is not a recursive-scope modifier.
+        scope_word = r"(?<![\w/.-])recursiv(?:e|ely)(?![\w/.-])"
+        scope_directive = re.search(
+            r"[.!?;]\s*(?:(?:do\s+(?:so|it)\s+)?recursively\b|"
+            r"(?:use|perform)\s+(?:a\s+)?recursive\s+(?:deletion|removal)\b)",
+            scope_text, re.I,
+        )
+        recursive_requested = bool(re.search(scope_word, operation_clause, re.I) or scope_directive)
+        negated = bool(re.search(r"\b(?:not|without|non[- ]?)\s*recursiv(?:e|ely)\b", scope_text, re.I))
+        scope_unknown = bool(re.search(r"\b(?:whether|if)\s+recursiv(?:e|ely)\b", operation_clause, re.I))
+        recursive_requested = recursive_requested and not negated and not scope_unknown
+        if recursive_requested and parsed.parameters.get('recursive') is not True:
+            error = UnverifiedActionError("explicit recursive deletion scope must be preserved")
+            error.validation_errors = {'parameters.recursive': [{
+                'code': 'missing_recursive_scope',
+                'message': 'The instruction explicitly requests recursive deletion. '
+                           'Return parameters.recursive=true; do not silently drop that scope.'}]}
+            raise error
+        if 'recursive' in parsed.parameters and (
+            parsed.parameters['recursive'] is not True or not recursive_requested
         ):
             raise UnverifiedActionError("recursive deletion was not explicitly requested")
 

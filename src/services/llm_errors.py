@@ -3,7 +3,7 @@ from copy import deepcopy
 
 
 class LLMConfigurationError(RuntimeError):
-    """The adapter or SDK failed validation before returning a parsed response."""
+    """The adapter setup or SDK configuration failed validation."""
 
 
 class StructuredOutputError(ValueError):

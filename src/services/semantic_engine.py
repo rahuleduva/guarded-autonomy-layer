@@ -122,14 +122,14 @@ def _vector(text: str) -> list[float]:
     return embeddings.query_embedding(text, compute)
 
 
-def _cloud_client():
+def _cloud_client(*, timeout=2):
     from urllib.parse import urlparse
     from qdrant_client import QdrantClient
     url = urlparse(settings.QDRANT_URL)
     if url.scheme != "https" or not (url.hostname or "").endswith(".cloud.qdrant.io"):
         raise ValueError("embedding storage requires a cloud Qdrant HTTPS endpoint")
     return QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY or None,
-                        timeout=2, check_compatibility=False)
+                        timeout=timeout, check_compatibility=False)
 
 
 def _query_qdrant(request: ActionRequest) -> list[dict[str, Any]]:

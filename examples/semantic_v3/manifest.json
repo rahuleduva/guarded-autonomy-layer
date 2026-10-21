@@ -1,141 +1,154 @@
 {
-  "version": "semantic-dataset-v3-draft-1",
-  "validation": "Checked all schema constructs used in dataset.schema.json with a local recursive validator, plus cross-field invariants and exact cross-split duplicate checks. No third-party JSON Schema library installed. Not domain-label approval.",
-  "coverage": {
-    "corpus": {
-      "count": 64,
-      "labels": {
-        "risky": 32,
-        "benign": 24,
-        "uncertain": 8
-      },
-      "action_counts": {
-        "delete_directory": 6,
-        "delete_file": 7,
-        "create_file": 11,
-        "create_directory": 4,
-        "move_file": 19,
-        "read_file": 8,
-        "update_file": 11
-      },
-      "risk_assessments": {
-        "mass_deletion": {
-          "applies": 5,
-          "does_not_apply": 5,
-          "uncertain": 1
-        },
-        "review_bypass": {
-          "applies": 7,
-          "does_not_apply": 5,
-          "uncertain": 2
-        },
-        "secret_export": {
-          "applies": 5,
-          "does_not_apply": 6,
-          "uncertain": 1
-        },
-        "credential_access": {
-          "applies": 9,
-          "does_not_apply": 4,
-          "uncertain": 1
-        },
-        "data_exposure": {
-          "applies": 5,
-          "does_not_apply": 4,
-          "uncertain": 2
-        },
-        "destructive_overwrite": {
-          "applies": 5,
-          "does_not_apply": 3,
-          "uncertain": 1
-        },
-        "audit_tampering": {
-          "applies": 6,
-          "does_not_apply": 3,
-          "uncertain": 1
-        }
-      },
-      "compound_cases": 2
+  "version": "semantic-corpus-validation-v1",
+  "status": "validated_locally_cloud_state_not_checked",
+  "corpus_fingerprint": "231e7a0e889010153fc6e726362283aa21b7dd7f3f68b27bdf70a88ee551147d",
+  "count": 100,
+  "added": 36,
+  "labels": {
+    "benign": 40,
+    "risky": 44,
+    "uncertain": 16
+  },
+  "action_counts": {
+    "create_directory": 6,
+    "create_file": 17,
+    "delete_directory": 8,
+    "delete_file": 11,
+    "move_file": 32,
+    "read_file": 13,
+    "update_file": 16
+  },
+  "risk_assessments": {
+    "audit_tampering": {
+      "applies": 9,
+      "does_not_apply": 8,
+      "uncertain": 2
     },
-    "evaluation": {
-      "count": 32,
-      "labels": {
-        "risky": 9,
-        "benign": 16,
-        "uncertain": 7
-      },
-      "action_counts": {
-        "delete_directory": 3,
-        "delete_file": 2,
-        "create_file": 7,
-        "update_file": 5,
-        "read_file": 8,
-        "create_directory": 2,
-        "move_file": 7
-      },
-      "risk_assessments": {
-        "mass_deletion": {
-          "applies": 2,
-          "does_not_apply": 3,
-          "uncertain": 1
-        },
-        "review_bypass": {
-          "applies": 3,
-          "does_not_apply": 2,
-          "uncertain": 1
-        },
-        "secret_export": {
-          "applies": 2,
-          "does_not_apply": 2,
-          "uncertain": 1
-        },
-        "credential_access": {
-          "applies": 3,
-          "does_not_apply": 3,
-          "uncertain": 1
-        },
-        "data_exposure": {
-          "applies": 1,
-          "does_not_apply": 2,
-          "uncertain": 2
-        },
-        "destructive_overwrite": {
-          "applies": 2,
-          "does_not_apply": 2,
-          "uncertain": 1
-        },
-        "audit_tampering": {
-          "applies": 2,
-          "does_not_apply": 3,
-          "uncertain": 1
-        }
-      },
-      "compound_cases": 2
+    "credential_access": {
+      "applies": 11,
+      "does_not_apply": 9,
+      "uncertain": 2
+    },
+    "data_exposure": {
+      "applies": 7,
+      "does_not_apply": 10,
+      "uncertain": 4
+    },
+    "destructive_overwrite": {
+      "applies": 8,
+      "does_not_apply": 10,
+      "uncertain": 3
+    },
+    "mass_deletion": {
+      "applies": 7,
+      "does_not_apply": 10,
+      "uncertain": 2
+    },
+    "review_bypass": {
+      "applies": 10,
+      "does_not_apply": 9,
+      "uncertain": 4
+    },
+    "secret_export": {
+      "applies": 7,
+      "does_not_apply": 10,
+      "uncertain": 2
     }
   },
-  "closest_cross_split_text_pairs": [
-    [
-      0.7398843930635838,
-      "export-08",
-      "eval-export-03"
-    ],
-    [
-      0.7309644670050761,
-      "exposure-05",
-      "eval-export-03"
-    ],
-    [
-      0.7161572052401747,
-      "overwrite-01",
-      "eval-overwrite-01"
-    ]
+  "risk_query_global_label_buckets": {
+    "audit_tampering": {
+      "benign": 8,
+      "risky": 9,
+      "uncertain": 2
+    },
+    "credential_access": {
+      "benign": 9,
+      "risky": 11,
+      "uncertain": 2
+    },
+    "data_exposure": {
+      "benign": 9,
+      "risky": 8,
+      "uncertain": 4
+    },
+    "destructive_overwrite": {
+      "benign": 10,
+      "risky": 8,
+      "uncertain": 3
+    },
+    "mass_deletion": {
+      "benign": 8,
+      "risky": 9,
+      "uncertain": 2
+    },
+    "review_bypass": {
+      "benign": 9,
+      "risky": 10,
+      "uncertain": 4
+    },
+    "secret_export": {
+      "benign": 9,
+      "risky": 8,
+      "uncertain": 2
+    }
+  },
+  "nearest_added_to_evaluation": [
+    {
+      "character_similarity": 0.6901,
+      "candidate_id": "contrast-12",
+      "evaluation_file": "examples/semantic_v3/evaluation.json",
+      "evaluation_id": "eval-overwrite-02"
+    },
+    {
+      "character_similarity": 0.6832,
+      "candidate_id": "contrast-23",
+      "evaluation_file": "examples/semantic_evaluation_v1/cases.json",
+      "evaluation_id": "fresh-002"
+    },
+    {
+      "character_similarity": 0.6478,
+      "candidate_id": "contrast-12",
+      "evaluation_file": "examples/semantic_evaluation_v1/cases.json",
+      "evaluation_id": "fresh-035"
+    },
+    {
+      "character_similarity": 0.6386,
+      "candidate_id": "contrast-12",
+      "evaluation_file": "examples/semantic_evaluation_v1/cases.json",
+      "evaluation_id": "fresh-038"
+    },
+    {
+      "character_similarity": 0.6351,
+      "candidate_id": "contrast-12",
+      "evaluation_file": "examples/semantic_evaluation_v1/cases.json",
+      "evaluation_id": "fresh-033"
+    },
+    {
+      "character_similarity": 0.6311,
+      "candidate_id": "contrast-18",
+      "evaluation_file": "examples/semantic_v3/evaluation.json",
+      "evaluation_id": "eval-bypass-02"
+    },
+    {
+      "character_similarity": 0.6074,
+      "candidate_id": "contrast-11",
+      "evaluation_file": "examples/semantic_evaluation_v1/cases.json",
+      "evaluation_id": "fresh-017"
+    },
+    {
+      "character_similarity": 0.6073,
+      "candidate_id": "contrast-32",
+      "evaluation_file": "examples/semantic_evaluation_v1/cases.json",
+      "evaluation_id": "fresh-039"
+    }
   ],
-  "similarity_note": "Character SequenceMatcher diagnostic only; not proof of semantic independence.",
+  "overlap_note": "No normalized exact overlap. Character similarity is a review aid, not semantic independence. The development suite informed this revision.",
   "sha256": {
-    "corpus.json": "a99ffa4f0f1e46dd6b1ac17701790989f31369e59ac1cfef092b62a51d3c953b",
-    "evaluation.json": "b9b1e1d6f231ae02485e538035877d0a54eb5757ecd71413d3f60c803c969fbf",
-    "taxonomy.json": "da49152fa188423c50f0f33d3827a6392b7c4a1660220932e8d35596c106b05a",
-    "dataset.schema.json": "258aacb2c9377849de9c33d5e86b640d4f8500ca164667223d5e92c204c24021",
-    "README.md": "1ccdb4f122f7b9cdc91fa671b027a87e2346c95f3eea3112e0b119b59cbc8a86"
+    "corpus.json": "20d34561398b7478f2d06e3cd0ea3362b5577b008a0ce3784cbc2e0822b79030",
+    "changes.json": "a1cb438119d53eab9d5dd92186fe07f71e9af2ed335feaf20f4385b4cb4f4501",
+    "README.md": "a3c8bfbf87467d65124d24dada87d9afce59e893f9cc5d3aa8861c0b27c3e6da",
+    "evaluation.json": "d99d7662e0f05472af11f9561034da19e1fed617ed8eb8b58af2f8597506ccc2",
+    "taxonomy.json": "3a47c40041489a888576233736819524a4f4b88fcdb22c50a48faa4643c77c89",
+    "dataset.schema.json": "258aacb2c9377849de9c33d5e86b640d4f8500ca164667223d5e92c204c24021"
   }
 }

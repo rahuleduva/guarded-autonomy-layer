@@ -14,6 +14,27 @@ DATA_ROOT = PROJECT_ROOT / 'examples/semantic_v3'
 TEXT_FORMAT = 'instruction-v1'
 
 
+def validate_taxonomy(value):
+    if not isinstance(value, dict):
+        raise ValueError('maintained risk taxonomy must be an object')
+    definitions = value.get('risk_categories')
+    if (not isinstance(value.get('version'), str) or not value['version'].strip()
+            or not isinstance(definitions, dict)
+            or set(definitions) != {category.value for category in RiskCategory}
+            or any(not isinstance(text, str) or not text.strip() for text in definitions.values())):
+        raise ValueError('maintained risk taxonomy is incomplete or invalid')
+    return {'version': value['version'], 'risk_categories': definitions}
+
+
+def load_taxonomy():
+    """Load the maintained risk definitions, without evaluation cases or cloud I/O."""
+    from src.services.llm_errors import LLMConfigurationError
+    try:
+        return validate_taxonomy(json.loads((DATA_ROOT / 'taxonomy.json').read_text()))
+    except (OSError, ValueError) as exc:
+        raise LLMConfigurationError('maintained risk taxonomy is unavailable or invalid') from exc
+
+
 class CorpusAction(Strict):
     action_class: ActionClass
     action_family: Literal['read', 'create', 'update', 'move', 'delete']
@@ -153,7 +174,8 @@ def seed(*, corpus_path: Path | str | None = None, collection: str | None = None
     dimension = len(vectors[0])
     if any(len(v) != dimension for v in vectors):
         raise ValueError('inconsistent embedding dimensions')
-    client = _cloud_client()
+    # Maintenance uploads need more time than interactive retrieval requests.
+    client = _cloud_client(timeout=30)
     try:
         if not client.collection_exists(collection):
             client.create_collection(collection, vectors_config=models.VectorParams(size=dimension, distance=models.Distance.COSINE))
@@ -172,7 +194,8 @@ def seed(*, corpus_path: Path | str | None = None, collection: str | None = None
                            corpus_hash=corpus.fingerprint, corpus_version=corpus.schema_version,
                            embedding_spec=embeddings.specification(), text_format=TEXT_FORMAT, origin=corpus.origin)
             points.append(models.PointStruct(id=point_id(corpus, row), vector=vector, payload=payload))
-        client.upsert(collection, points=points, wait=True)
+        for offset in range(0, len(points), 10):
+            client.upsert(collection, points=points[offset:offset + 10], wait=True)
         stored = client.retrieve(collection, ids=[p.id for p in points], with_payload=True, with_vectors=False)
         expected = {str(p.id): p.payload for p in points}
         if len(stored) != len(points) or any(expected.get(str(p.id)) != p.payload for p in stored):

@@ -1,0 +1,57 @@
+{
+  "run_date": "2026-10-17",
+  "run_type": "live_infrastructure_preflight",
+  "overall_status": "blocked",
+  "checks": {
+    "celery_installed": {
+      "status": "pass",
+      "version": "5.6.3"
+    },
+    "python_dependencies": {
+      "status": "pass",
+      "detail": "pip check reported no broken requirements"
+    },
+    "postgresql_connectivity": {
+      "status": "pass",
+      "dialect": "postgresql"
+    },
+    "seeded_auth_principals": {
+      "status": "pass",
+      "enabled_count": 2
+    },
+    "background_schema": {
+      "status": "fail",
+      "alembic_revision": "e636fafa3510",
+      "missing_table": "workflow_dispatches",
+      "missing_workflow_operation_columns": [
+        "automatic_retry_count",
+        "execution_mode",
+        "generation",
+        "heartbeat_at",
+        "input_envelope",
+        "next_run_at",
+        "queue_deadline",
+        "run_count",
+        "run_deadline"
+      ],
+      "missing_request_attempt_event_columns": ["operation_id"]
+    },
+    "cloudamqp_tls_and_queue_declaration": {
+      "status": "pass",
+      "credentials_printed": false
+    },
+    "fastapi_startup": {
+      "status": "blocked",
+      "detail": "startup rejected the outdated workflow schema"
+    },
+    "background_e2e": {
+      "status": "not_run",
+      "reason": "the required migration is not applied and FastAPI cannot start"
+    }
+  },
+  "side_effects": {
+    "workflow_jobs_submitted": 0,
+    "decision_rows_created": 0,
+    "database_rows_modified": false
+  }
+}

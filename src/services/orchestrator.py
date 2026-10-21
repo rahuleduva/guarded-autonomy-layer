@@ -55,6 +55,10 @@ def evaluate_action(session: Session, request: ActionRequest, *,
             token = token_issuer.issue(decision.decision_id, result.policy_hash, request, result.ttl_seconds)
             decision.capability_token_hash = hashlib.sha256(token.encode()).hexdigest()
             save_policy_record(session, decision)
+    unsupported = evidence.get('unsupported_action')
+    unsupported_response = ({'code': 'UNSUPPORTED_ACTION',
+        'action_class': unsupported['action_class'], 'reason': unsupported['reason']}
+        if unsupported is not None else None)
     return EvaluationResponse(
         status="ok", decision_id=decision.decision_id, request_id=request.request_id,
         action_request=request, decision=result.outcome, risk_level=result.risk_level,
@@ -63,4 +67,5 @@ def evaluate_action(session: Session, request: ActionRequest, *,
         semantic_summary=evidence.get('semantic_pipeline', {}).get('summary'),
         semantic_mode=(evidence['semantic_pipeline']['mode']
                        if evidence.get('semantic_pipeline', {}).get('summary') is not None else None),
+        unsupported_action=unsupported_response,
     )

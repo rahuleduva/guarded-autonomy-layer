@@ -76,6 +76,13 @@ class Settings(BaseSettings):
     REDIS_NAMESPACE: str = Field(default="guarded-autonomy-layer", min_length=1)
     EMBEDDING_CACHE_TTL_SECONDS: int = Field(default=86400, ge=1)
 
+    # Optional durable E2E reports; application decisions remain in PostgreSQL.
+    MONGODB_CONNECTION_STRING: SecretStr = SecretStr('')
+    MONGODB_DATABASE: str = Field(default='guarded_autonomy', min_length=1,
+                                  max_length=63, pattern=r'^[A-Za-z0-9_-]+$')
+    MONGODB_COLLECTION_PREFIX: str = Field(
+        default='guarded-autonomy-layers', pattern=r'^guarded-autonomy-layers[A-Za-z0-9_-]*$')
+
     # None means "derive from OFFLINE_MODE"; an explicit DATABASE_URL always wins.
     DATABASE_URL: Optional[str] = None
 

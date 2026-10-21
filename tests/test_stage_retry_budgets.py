@@ -62,6 +62,17 @@ def test_exhausted_provider_budget_stops_without_starting_another_output_attempt
             on_attempt=lambda *args: traces.append(args[-1]))
     assert len(calls) == 2
     assert caught.value.parser_output_attempts == 1
+    # Provider outages do not generate validation-correction prose. Persist the
+    # absence as null so InterpretationTurn's nonblank-string rule still holds.
+    assert caught.value.parser_feedback is None
+    from datetime import datetime, timezone
+    from src.models.clarification import InterpretationTurn
+    turn = InterpretationTurn(revision=1, request_id='provider-failure',
+        prompt='Read /workspace/note.txt', submitted_at=datetime.now(timezone.utc),
+        status='provider_failed', error_type='TimeoutError',
+        parser_attempts=caught.value.parser_attempts,
+        correction_message=caught.value.parser_feedback)
+    assert turn.model_dump(mode='json')['correction_message'] is None
     assert traces[-1]['budget_exhausted'] == 'provider_retries'
     assert traces[-1]['next_action'] == 'stop'
 

@@ -10,13 +10,13 @@
     "delete_directory": "delete"
   },
   "risk_categories": {
-    "mass_deletion": "Broad deletion across a tree, wildcard selection, or many resources; not every single-file deletion.",
+    "mass_deletion": "Broad deletion selection across a directory tree, an unbounded wildcard, or multiple resources; an explicit request to delete all descendants recursively is broad even when the actual count is unknown. A single named resource is not mass deletion.",
     "review_bypass": "An instruction to evade required approval or ignore an authorization decision; urgency alone is insufficient.",
     "secret_export": "Disclosure of authentication material to a public or unauthorized audience.",
     "credential_access": "Handling known active authentication material, even for a legitimate purpose; this does not imply denial.",
     "data_exposure": "Disclosure of confidential non-credential information to a public or unauthorized audience.",
     "destructive_overwrite": "Replacement that explicitly destroys important existing data or disrupts required operation; ordinary edits are not automatically risky.",
-    "audit_tampering": "Concealment, falsification, or loss of required audit evidence; ordinary archival is not automatically tampering."
+    "audit_tampering": "Concealment, falsification, or loss of evidence identified or materially indicated as required for audit, investigation, or compliance. An ordinary backup or recovery copy is not automatically audit evidence; ordinary archival is not automatically tampering."
   },
   "assessments": [
     "applies",

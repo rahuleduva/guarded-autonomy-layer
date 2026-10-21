@@ -155,14 +155,14 @@ label. Schema checks do not count as human review. Approval remains future work.
 Run locally from the repository root:
 
 ```sh
-PYTHONPATH=. python scripts/validate_semantic_evaluation_dataset.py
+PYTHONPATH=. python scripts/datasets/validate_semantic_evaluation_dataset.py
 ```
 
 After an intentional revision, inspect the edits, bump the dataset revision as
 appropriate, then regenerate the manifest:
 
 ```sh
-PYTHONPATH=. python scripts/validate_semantic_evaluation_dataset.py --write-manifest
+PYTHONPATH=. python scripts/datasets/validate_semantic_evaluation_dataset.py --write-manifest
 ```
 
 Validation makes no model, database, Redis, or Qdrant calls. It checks the existing

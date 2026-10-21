@@ -33,8 +33,8 @@ def test_grounding_failure_is_scored_as_missing_input_rejection():
     analysis = {'result': {'actions': [{'action_class': 'move_file', 'excerpt':
         '/srv/agent/workspace/public-handbook.txt'}]}}
     error = llm_parser.OnlineActionParseError('parser rejected action')
-    error.__cause__ = llm_parser.CorrectableParserError(
-        'a single action requires a grounded executable action')
+    error.__cause__ = llm_parser.UnverifiedActionError(
+        'move destination was not specified in the request')
     result = evaluation._compare_parser(None, analysis, expectations['fresh-052'], error)
     assert result['handling_match'] is True
     assert result['parsed_action_details_match'] is None

@@ -6,14 +6,14 @@
     "semantic-development-v1": 56
   },
   "source_fingerprints": {
-    "legacy-held-out": "c8165c1bdfa4f41190ff733c74d01598dc492cefae2f64e80c57743140a90fae",
+    "legacy-held-out": "49e6ec5f63c8fd0ad8d30469fa35b46725aef6c4c535055291268827b47b412d",
     "semantic-development-v1": "c4f4fc0f02646b3bc342fab3aff1c516c7e3ae0a037e7a1c515e768417680d31"
   },
-  "dataset_fingerprint": "d1ac81d8fb1e7de27bf424ffc6c12d0dac6313800404fe0573e8492cd16fb928",
+  "dataset_fingerprint": "8ba4854e20fe9b516d30db0fb872a1413740e00efdd70d5ecd0260ae4da48829",
   "labels": {
-    "benign": 40,
+    "benign": 39,
     "risky": 29,
-    "uncertain": 19
+    "uncertain": 20
   },
   "parser_dispositions": {
     "clarification_or_rejection": 4,
@@ -33,8 +33,8 @@
     },
     "credential_access": {
       "applies": 10,
-      "does_not_apply": 6,
-      "uncertain": 4
+      "does_not_apply": 5,
+      "uncertain": 5
     },
     "data_exposure": {
       "applies": 5,
@@ -67,9 +67,9 @@
   "semantic_independence_claimed": false,
   "review_status": "pending_human_review",
   "sha256": {
-    "cases.json": "b62ac4f8b8eb56e51dd2885a62e6d70ddc23faec8f93adb214ec7f71b05f4263",
+    "cases.json": "cbc71bf4ceed7b2a80bccb393bf67208a635deacb3e28c5c96f93818c5a2562c",
     "parser_expectations.json": "6023c241c7d375d51be479bd353c13f1620e7d72ae798f9fc3547cc0492ba041",
     "compatibility_review.json": "5f52ff5cf0edfdac674bec7fa03ec2fd94571f57b701bdb898b20355d7f8df9b",
-    "README.md": "475b7203d68ce8d20add12c6cb870c6767c2c3f6f3caf5c0ea51978d602d4e35"
+    "README.md": "de1dc606b5c161f4bf96fb697109059cecf6ba7cb83329db6cf03af53a8a676a"
   }
 }

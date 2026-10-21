@@ -6,6 +6,36 @@ from src.services.llm_routing import current_routing, setting_value
 from src.services.llm_errors import LLMConfigurationError, StructuredOutputError
 
 
+def generation_schema(model):
+    """Derive provider-neutral generation guidance; Pydantic still validates output.
+
+    Upper array bounds can make otherwise valid schemas too complex for provider
+    decoders. Express those bounds as guidance in a fresh schema, retaining all
+    other constraints. Visit schema positions only, never defaults or examples.
+    """
+    schema = model.model_json_schema()
+
+    def visit(node):
+        if not isinstance(node, dict):
+            return
+        limit = node.pop('maxItems', None)
+        if limit is not None:
+            node['description'] = (node.get('description', '')
+                                   + f' Return at most {limit} items.').strip()
+        for key in ('$defs', 'definitions', 'properties', 'patternProperties', 'dependentSchemas'):
+            for child in node.get(key, {}).values():
+                visit(child)
+        for key in ('items', 'additionalItems', 'additionalProperties', 'unevaluatedItems',
+                    'unevaluatedProperties', 'contains', 'propertyNames', 'not', 'if', 'then',
+                    'else', 'anyOf', 'oneOf', 'allOf', 'prefixItems'):
+            child = node.get(key)
+            for item in child if isinstance(child, list) else [child]:
+                visit(item)
+
+    visit(schema)
+    return schema
+
+
 class LangChainStructuredParser:
     """Small adapter preserving the existing ``invoke(messages)`` interface."""
 
@@ -77,7 +107,7 @@ class LangChainStructuredParser:
         assert_no_transaction()
         try:
             model = self._chat_model()
-            structured = model.with_structured_output(self.schema, include_raw=True)
+            structured = model.with_structured_output(generation_schema(self.schema), include_raw=True)
         except (ValueError, TypeError) as exc:
             raise LLMConfigurationError("LLM adapter configuration failed validation") from exc
 
@@ -86,8 +116,23 @@ class LangChainStructuredParser:
                 (message["role"], message["content"]) for message in messages
             ])
         except ValidationError as exc:
-            # With include_raw=True, response parsing errors are returned in the
-            # envelope. A validation error raised here belongs to the SDK call.
+            # Native structured-output SDKs can validate the response before
+            # LangChain builds its include_raw envelope. A failure against our
+            # response model is rejected output, not adapter configuration.
+            if exc.title == self.schema.__name__:
+                errors = exc.errors(include_url=False)
+                root = next((item for item in errors if not item['loc']
+                             and 'input' in item), None)
+                raw_output = root['input'] if root else {
+                    'validation_inputs': [
+                        {'loc': list(item['loc']), 'input': item.get('input')}
+                        for item in errors
+                    ],
+                }
+                raise StructuredOutputError(
+                    'Model response failed SDK response-schema validation',
+                    raw_output=raw_output,
+                ) from exc
             raise LLMConfigurationError("LLM SDK invocation failed validation") from exc
         if not isinstance(envelope, dict) or not {"raw", "parsed", "parsing_error"}.issubset(envelope):
             raise LLMConfigurationError("LLM adapter returned an invalid structured-output envelope")
@@ -102,7 +147,7 @@ class LangChainStructuredParser:
             ) from parsing_error
         result = envelope["parsed"]
         if isinstance(result, self.schema):
-            return result.model_dump()
+            result = result.model_dump()
         try:
             return self.schema.model_validate(result).model_dump()
         except ValidationError as exc:
